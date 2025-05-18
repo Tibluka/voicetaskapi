@@ -8,6 +8,8 @@ import tempfile
 import pymongo
 import json as pyjson  # para evitar conflito com sua variável
 import re
+from datetime import datetime, timedelta
+import calendar
 
 app = Flask(__name__)
 
@@ -42,15 +44,48 @@ def transcribe_audio():
         
         if json_data.get("consult") == True:
             filters = {}
-            for key in ["type", "category", "date"]:
+
+            # Adiciona type e category se existirem
+            for key in ["type", "category"]:
                 value = json_data.get(key)
                 if value:
                     filters[key] = value
-            
+
+            # Trata o campo de data
+            date_str = json_data.get("date")
+            if date_str:
+                try:
+                    parts = date_str.split("-")
+                    if len(parts) == 1:
+                        # Apenas ano
+                        year = int(parts[0])
+                        start = datetime(year, 1, 1)
+                        end = datetime(year + 1, 1, 1)
+                    elif len(parts) == 2:
+                        # Ano e mês
+                        year, month = int(parts[0]), int(parts[1])
+                        start = datetime(year, month, 1)
+                        _, last_day = calendar.monthrange(year, month)
+                        end = datetime(year, month, last_day) + timedelta(days=1)
+                    elif len(parts) == 3:
+                        # Ano, mês e dia
+                        year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+                        start = datetime(year, month, day)
+                        end = start + timedelta(days=1)
+                    else:
+                        raise ValueError("Formato de data inválido")
+
+                    # Aplica o filtro de intervalo
+                    filters["date"] = {"$gte": start.strftime("%Y-%m-%d"), "$lt": end.strftime("%Y-%m-%d")}
+
+                except Exception as e:
+                    return jsonify({"error": f"Erro ao processar data: {str(e)}"}), 400
+
+            # Consulta no MongoDB
             results = list(spending_collection.find(filters))
-            
+
             for r in results:
-                r["_id"] = str(r["_id"])
+                r["_id"] = str(r["_id"])  # converte ObjectId para string
 
         else:
             # Prepara o documento para inserção
