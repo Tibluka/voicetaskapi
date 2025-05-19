@@ -86,23 +86,18 @@ def transcribe_audio():
                 except Exception as e:
                     return jsonify({"error": f"Erro ao processar data: {str(e)}"}), 400
 
-            # Aplica operação se houver
+            # Aplica operação de ordenação se for MAX ou MIN
             operation = json_data.get("operation")
             if operation == "MAX":
                 results = list(spending_collection.find(filters).sort("value", -1).limit(1))
             elif operation == "MIN":
                 results = list(spending_collection.find(filters).sort("value", 1).limit(1))
-            elif operation == "SUM":
-                pipeline = [
-                    {"$match": filters},
-                    {"$group": {"_id": None, "total": {"$sum": "$value"}}}
-                ]
-                agg_result = list(spending_collection.aggregate(pipeline))
-                results = {"total": agg_result[0]["total"] if agg_result else 0}
             else:
+                # Para SUM ou nenhum, apenas retorna os registros
                 results = list(spending_collection.find(filters))
 
-            for r in results if isinstance(results, list) else []:
+            # Converte _id para string
+            for r in results:
                 r["_id"] = str(r["_id"])
 
         

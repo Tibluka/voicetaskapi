@@ -39,6 +39,11 @@ Exemplos:
   → `operation: "SUM"`
 - Pergunta: "Qual foi o menor gasto em transporte?"
   → `operation: "MIN"`
+  
+Se a pergunta de consulta não houver uma categoria, o campo "category" pode ser emitigo.
+Exemplos:
+- Pergunta: "Quanto gastei no mes de maio?"
+  → `category: ""`
 
 ### Resposta esperada:
 Sempre responda em formato JSON com as propriedades:
