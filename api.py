@@ -107,16 +107,21 @@ def transcribe_audio():
 
         
         else:
-            # Prepara o documento para inserção
-            spending_doc = {
-                "description": json_data.get("description"),
-                "value": json_data.get("value"),
-                "type": json_data.get("type"),
-                "category": json_data.get("category"),
-                "date":  json_data.get("date"),
-            }
-            
-            spending_collection.insert_one(spending_doc).inserted_id
+            required_fields = ["description", "value", "type", "category", "date"]
+
+            missing_fields = [field for field in required_fields if not json_data.get(field)]
+                
+            if not missing_fields:
+                # Prepara o documento para inserção
+                spending_doc = {
+                    "description": json_data.get("description"),
+                    "value": json_data.get("value"),
+                    "type": json_data.get("type"),
+                    "category": json_data.get("category"),
+                    "date": json_data.get("date"),
+                }
+
+                spending_collection.insert_one(spending_doc).inserted_id
         # Insere no MongoDB
     except Exception as e:
         return jsonify({"error": str(e)}), 500
