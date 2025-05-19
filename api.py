@@ -45,8 +45,7 @@ def transcribe_audio():
         json_data = pyjson.loads(cleaned_str) 
         
         results = None
-        
-        if json_data.get("consult") == True:
+        if json_data.get("consult") is True:
             filters = {}
 
             # Adiciona type e category se existirem
@@ -79,18 +78,34 @@ def transcribe_audio():
                     else:
                         raise ValueError("Formato de data inválido")
 
-                    # Aplica o filtro de intervalo
-                    filters["date"] = {"$gte": start.strftime("%Y-%m-%d"), "$lt": end.strftime("%Y-%m-%d")}
+                    filters["date"] = {
+                        "$gte": start.strftime("%Y-%m-%d"),
+                        "$lt": end.strftime("%Y-%m-%d")
+                    }
 
                 except Exception as e:
                     return jsonify({"error": f"Erro ao processar data: {str(e)}"}), 400
 
-            # Consulta no MongoDB
-            results = list(spending_collection.find(filters))
+            # Aplica operação se houver
+            operation = json_data.get("operation")
+            if operation == "MAX":
+                results = list(spending_collection.find(filters).sort("value", -1).limit(1))
+            elif operation == "MIN":
+                results = list(spending_collection.find(filters).sort("value", 1).limit(1))
+            elif operation == "SUM":
+                pipeline = [
+                    {"$match": filters},
+                    {"$group": {"_id": None, "total": {"$sum": "$value"}}}
+                ]
+                agg_result = list(spending_collection.aggregate(pipeline))
+                results = {"total": agg_result[0]["total"] if agg_result else 0}
+            else:
+                results = list(spending_collection.find(filters))
 
-            for r in results:
-                r["_id"] = str(r["_id"])  # converte ObjectId para string
+            for r in results if isinstance(results, list) else []:
+                r["_id"] = str(r["_id"])
 
+        
         else:
             # Prepara o documento para inserção
             spending_doc = {
@@ -101,7 +116,7 @@ def transcribe_audio():
                 "date":  json_data.get("date"),
             }
             
-            inserted_id = spending_collection.insert_one(spending_doc).inserted_id
+            spending_collection.insert_one(spending_doc).inserted_id
         # Insere no MongoDB
     except Exception as e:
         return jsonify({"error": str(e)}), 500
