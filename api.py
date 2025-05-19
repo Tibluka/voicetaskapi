@@ -42,6 +42,8 @@ def transcribe_audio():
 
         json_data = pyjson.loads(cleaned_str) 
         
+        results = None
+        
         if json_data.get("consult") == True:
             filters = {}
 
@@ -94,7 +96,7 @@ def transcribe_audio():
                 "value": json_data.get("value"),
                 "type": json_data.get("type"),
                 "category": json_data.get("category"),
-                "date": json_data.get("date")
+                "date":  datetime.utcnow()
             }
             
             inserted_id = spending_collection.insert_one(spending_doc).inserted_id
