@@ -6,20 +6,22 @@ from flask import Flask, request, jsonify
 from werkzeug.utils import secure_filename
 import tempfile
 import pymongo
-import json as pyjson  # para evitar conflito com sua variável
+import json as pyjson
 import re
 from datetime import datetime, timedelta
 import calendar
+from decouple import config
 
 app = Flask(__name__)
 
+MONGO = config("MONGO")
+
 try:
-    client = pymongo.MongoClient(
-        "mongodb+srv://tibluka:Lukkao1234@cluster0.4mljuv7.mongodb.net/?retryWrites=true&w=majority")
+    client = pymongo.MongoClient(MONGO)
     db = client['agacode']
+    spending_collection = db['spending']
 except Exception as e:
     print(str(e))
-spending_collection = db['spending']
 
 @app.route("/transcribe", methods=["POST"])
 def transcribe_audio():
@@ -96,7 +98,7 @@ def transcribe_audio():
                 "value": json_data.get("value"),
                 "type": json_data.get("type"),
                 "category": json_data.get("category"),
-                "date":  datetime.utcnow()
+                "date":  json_data.get("date"),
             }
             
             inserted_id = spending_collection.insert_one(spending_doc).inserted_id
