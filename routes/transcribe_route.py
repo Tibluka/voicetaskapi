@@ -9,6 +9,8 @@ from werkzeug.utils import secure_filename
 from services.transcribe import transcribe
 from db.mongo import spending_collection
 from utils.date_utils import get_date_range
+from utils.load_file import load_prompt
+from services.gpt_analyser import analyse_result
 
 transcribe_bp = Blueprint("transcribe", __name__)
 
@@ -51,6 +53,9 @@ def transcribe_audio():
 
             for r in results:
                 r["_id"] = str(r["_id"])
+            response = analyse_result(results, json_data.get("description"))
+            cleaned_str = re.sub(r"^```json\s*|```$", "", response.strip(), flags=re.MULTILINE)
+            json_data = pyjson.loads(cleaned_str)
         else:
             required_fields = ["description", "value", "type", "category", "date"]
             missing = [field for field in required_fields if not json_data.get(field)]
@@ -58,7 +63,7 @@ def transcribe_audio():
             if not missing:
                 spending_doc = {field: json_data[field] for field in required_fields}
                 spending_collection.insert_one(spending_doc)
-
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
