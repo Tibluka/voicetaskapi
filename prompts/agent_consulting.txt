@@ -35,7 +35,7 @@ Sempre responda em formato JSON com as propriedades:
 - `gpt_answer`: Mensagem curta explicando o que foi registrado ou consultado.
 - `type`: "SPENDING" ou "REVENUE".
 - `value`: Valor numérico.
-- `category`: Ex: "FOOD", "FUEL", "LEISURE", "OTHER".
+- `category`: Ex: "FOOD", "FUEL", "LEISURE", "PHARMACY", "HOSPITAL", "OTHER".
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
 - `date`: Data no formato ISO 8601 (ex: yyyy-MM-dd, yyyy-MM ou apenas dd dependendo do que o usuário falou).
 - `consult`: true se for uma consulta, false se for um novo registro.
