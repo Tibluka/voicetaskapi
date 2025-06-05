@@ -11,12 +11,14 @@ from services.transcribe import transcribe
 from db.mongo import spending_collection
 
 from services.gpt_analyser import analyse_result
+from utils.auth_decorator import token_required
 
 transcribe_bp = Blueprint("transcribe", __name__)
 
 spending_service = SpendingService(spending_collection)
 
 @transcribe_bp.route("/transcribe", methods=["POST"])
+@token_required
 def transcribe_audio():
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
