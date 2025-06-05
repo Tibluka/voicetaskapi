@@ -40,6 +40,9 @@ Sempre responda em formato JSON com as propriedades:
 - `date`: Data no formato ISO 8601 (ex: yyyy-MM-dd, yyyy-MM ou apenas dd dependendo do que o usuário falou).
 - `consult`: true se for uma consulta, false se for um novo registro.
 - `operation`: (optional) MAX, MIN ou SUM se for consulta.
+- `consult_installment`: se for uma consulta de uma compra parcelada ou todas as compras parceladas, volte esse campo true.
+- `installments`: se for uma compra parcelada retorna a quantidade de parcelas (opcional).
+- `total_value`: retorna o valor total do gasto se for uma compra parcelada (opcional).
 
 ### Contexto:
 Não escreva nada fora do JSON. Não use explicações antes ou depois. Retorne apenas o JSON com as propriedades descritas.

@@ -6,13 +6,15 @@ import json as pyjson
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 
+from services.spending_service import SpendingService
 from services.transcribe import transcribe
 from db.mongo import spending_collection
-from utils.date_utils import get_date_range
-from utils.load_file import load_prompt
+
 from services.gpt_analyser import analyse_result
 
 transcribe_bp = Blueprint("transcribe", __name__)
+
+spending_service = SpendingService(spending_collection)
 
 @transcribe_bp.route("/transcribe", methods=["POST"])
 def transcribe_audio():
@@ -35,35 +37,19 @@ def transcribe_audio():
 
         results = None
         if json_data.get("consult") is True:
-            filters = {k: json_data[k] for k in ["type", "category"] if json_data.get(k)}
-
-            if json_data.get("date"):
-                try:
-                    filters["date"] = get_date_range(json_data["date"])
-                except Exception as e:
-                    return jsonify({"error": f"Erro ao processar data: {str(e)}"}), 400
-
-            operation = json_data.get("operation")
-            if operation == "MAX":
-                results = list(spending_collection.find(filters).sort("value", -1).limit(1))
-            elif operation == "MIN":
-                results = list(spending_collection.find(filters).sort("value", 1).limit(1))
-            else:
-                results = list(spending_collection.find(filters))
-
-            for r in results:
-                r["_id"] = str(r["_id"])
-            response = analyse_result(results, json_data.get("description"))
-            cleaned_str = re.sub(r"^```json\s*|```$", "", response.strip(), flags=re.MULTILINE)
-            json_data = pyjson.loads(cleaned_str)
+            try:
+                results = spending_service.consult_spending(json_data)
+                response = analyse_result(results, json_data.get("description"))
+                cleaned_str = re.sub(r"^```json\s*|```$", "", response.strip(), flags=re.MULTILINE)
+                json_data = pyjson.loads(cleaned_str)
+            except Exception as e:
+                return jsonify({"error": str(e)}), 400
         else:
-            required_fields = ["description", "value", "type", "category", "date"]
-            missing = [field for field in required_fields if not json_data.get(field)]
+            try:
+                spending_service.insert_spending(json_data)
+            except ValueError as ve:
+                return jsonify({"error": str(ve)}), 400
 
-            if not missing:
-                spending_doc = {field: json_data[field] for field in required_fields}
-                spending_collection.insert_one(spending_doc)
-        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
