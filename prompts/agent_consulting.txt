@@ -38,6 +38,7 @@ Sempre responda em formato JSON com as propriedades:
 - `category`: Ex: "FOOD", "FUEL", "LEISURE", "PHARMACY", "HOSPITAL", "OTHER".
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
 - `date`: Data no formato ISO 8601 (ex: yyyy-MM-dd, yyyy-MM ou apenas dd dependendo do que o usuário falou).
+  - Se for uma consulta sobre parcelas, esse campo PODE SER NULL caso o usuário não informe no prompt.
 - `consult`: true se for uma consulta, false se for um novo registro.
 - `operation`: (optional) MAX, MIN ou SUM se for consulta.
 - `consult_installment`: se for uma consulta de uma compra parcelada ou todas as compras parceladas, volte esse campo true.

@@ -42,11 +42,12 @@ class SpendingService:
             # Documento principal
             parent_doc = {
                 "description": data["description"],
-                "value": float(data["value"]),
+                "value": round(value_per_installment, 2),
                 "type": data["type"],
                 "category": data["category"],
                 "date": base_date.strftime("%Y-%m-%d"),
                 "installments": installments,
+                "installment_info": f"1/{installments}",
                 "is_parent": True,
             }
             parent_result = self.collection.insert_one(parent_doc)
@@ -54,7 +55,7 @@ class SpendingService:
 
             # Documentos das parcelas
             docs = []
-            for i in range(installments):
+            for i in range(installments - 1):
                 installment_date = (base_date + relativedelta(months=i)).strftime("%Y-%m-%d")
                 doc = {
                     "description": data["description"],
@@ -62,7 +63,8 @@ class SpendingService:
                     "type": data["type"],
                     "category": data["category"],
                     "date": installment_date,
-                    "installment_info": f"{i + 1}/{installments}",
+                    "installments": installments,
+                    "installment_info": f"{i + 2}/{installments}",
                     "parent_id": parent_id,
                 }
                 docs.append(doc)
@@ -70,46 +72,65 @@ class SpendingService:
             self.collection.insert_many(docs)
 
     def consult_spending(self, data: dict):
-        filters = {k: data[k] for k in ["type", "category"] if data.get(k)}
+        filters = {}
 
-        # 🔥 Filtro por mês (aceita YYYY-MM ou YYYY-MM-DD)
+        # Filtros básicos
+        for k in ["type", "category"]:
+            if data.get(k):
+                filters[k] = data[k]
+
+        # Filtro de data (intervalo para 'YYYY-MM' ou exato para 'YYYY-MM-DD')
         if data.get("date"):
-            try:
-                date_str = data["date"]
-                base_date = datetime.strptime(date_str, "%Y-%m-%d" if len(date_str) == 10 else "%Y-%m")
-                filters["date"] = base_date.strftime("%Y-%m")
-            except ValueError:
-                raise ValueError("Date must be in 'YYYY-MM' or 'YYYY-MM-DD' format")
+            date_val = data["date"]
+            if len(date_val) == 7:  # yyyy-mm
+                filters["date"] = get_date_range(date_val)
+            elif len(date_val) == 10:  # yyyy-mm-dd
+                filters["date"] = date_val
+            else:
+                raise ValueError("Date must be 'YYYY-MM' or 'YYYY-MM-DD'")
 
-        # 🔥 Consultar apenas parcelas do mês atual
-        if data.get("consult_installment"):
-            filters["installment_info"] = {"$exists": True}
-            filters["date"] = datetime.now().strftime("%Y-%m")  # mês atual
-            filters["is_parent"] = False
+        # Se for consulta só de parcelas (exemplo: consult_installment == True)
+        if data.get("consult_installment") is True:
+            # Consulta de compras parceladas (parent ou parcelas)
+            filters["installments"] = {"$gte": 1}
 
-        # 🔥 Consultar apenas compras principais
-        if data.get("consult_parent"):
-            filters["is_parent"] = True
+            # Filtro de data
+            if data.get("date"):
+                date_val = data["date"]
+                if len(date_val) == 7:  # yyyy-mm
+                    filters["date"] = get_date_range(date_val)
+                elif len(date_val) == 10:  # yyyy-mm-dd
+                    filters["date"] = date_val
+                else:
+                    raise ValueError("Date must be 'YYYY-MM' or 'YYYY-MM-DD'")
+            else:
+                # Não passou data -> pega mês atual
+                today_str = datetime.today().strftime("%Y-%m")
+                filters["date"] = get_date_range(today_str)
 
-        # 🔥 Operações de valor máximo/mínimo
+        else:
+            # Consulta normal -> compras à vista (sem is_parent) e compras principais (is_parent == True)
+            filters["$or"] = [
+                {"is_parent": {"$exists": False}},  # compras à vista
+                {"is_parent": True}                 # compras principais (parent)
+            ]
+
+        # Ordenação
         operation = data.get("operation")
         sort_order = None
-
         if operation == "MAX":
             sort_order = ("value", DESCENDING)
         elif operation == "MIN":
             sort_order = ("value", ASCENDING)
 
-        # 🔍 Faz a consulta
+        # Busca no MongoDB
         if sort_order:
             results = list(self.collection.find(filters).sort([sort_order]).limit(1))
         else:
             results = list(self.collection.find(filters))
 
-        # 🔧 Converte ObjectId para string
+        # Converter ObjectId para string
         for r in results:
             r["_id"] = str(r["_id"])
-            if r.get("parent_id"):
-                r["parent_id"] = str(r["parent_id"])
 
         return results
