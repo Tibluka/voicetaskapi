@@ -1,6 +1,6 @@
 
 from pymongo import DESCENDING, ASCENDING
-from bson import ObjectId
+from flask import g
 from utils.date_utils import get_date_range
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -10,6 +10,9 @@ class SpendingService:
         self.collection = collection
 
     def insert_spending(self, data: dict):
+        logged_user = g.logged_user
+        user_id = logged_user.get('id')
+
         required_fields = ["description", "value", "type", "category", "date"]
         missing = [field for field in required_fields if not data.get(field)]
 
@@ -19,7 +22,6 @@ class SpendingService:
         installments = int(data.get("installments", 1))
 
         try:
-            # Força o formato YYYY-MM-DD
             base_date = datetime.strptime(data["date"], "%Y-%m-%d")
         except ValueError:
             raise ValueError("Date must be in 'YYYY-MM-DD' format")
@@ -27,11 +29,12 @@ class SpendingService:
         # 🔥 Compra à vista
         if installments <= 1:
             doc = {
+                "userId": user_id,
                 "description": data["description"],
                 "value": float(data["value"]),
                 "type": data["type"],
                 "category": data["category"],
-                "date": base_date.strftime("%Y-%m-%d"),  # Salva sempre como YYYY-MM-DD
+                "date": base_date.strftime("%Y-%m-%d"),
             }
             self.collection.insert_one(doc)
 
@@ -41,6 +44,7 @@ class SpendingService:
 
             # Documento principal
             parent_doc = {
+                "userId": user_id,
                 "description": data["description"],
                 "value": round(value_per_installment, 2),
                 "type": data["type"],
@@ -56,8 +60,9 @@ class SpendingService:
             # Documentos das parcelas
             docs = []
             for i in range(installments - 1):
-                installment_date = (base_date + relativedelta(months=i)).strftime("%Y-%m-%d")
+                installment_date = (base_date + relativedelta(months=i + 1)).strftime("%Y-%m-%d")
                 doc = {
+                    "user_id": user_id,
                     "description": data["description"],
                     "value": round(value_per_installment, 2),
                     "type": data["type"],
@@ -72,7 +77,12 @@ class SpendingService:
             self.collection.insert_many(docs)
 
     def consult_spending(self, data: dict):
-        filters = {}
+        logged_user = g.logged_user
+        user_id = logged_user.get('id')
+        
+        filters = {
+            "userId": user_id  # 🔥 Filtro por usuário
+        }
 
         # Filtros básicos
         for k in ["type", "category"]:
@@ -89,12 +99,10 @@ class SpendingService:
             else:
                 raise ValueError("Date must be 'YYYY-MM' or 'YYYY-MM-DD'")
 
-        # Se for consulta só de parcelas (exemplo: consult_installment == True)
+        # Se for consulta só de parcelas
         if data.get("consult_installment") is True:
-            # Consulta de compras parceladas (parent ou parcelas)
             filters["installments"] = {"$gte": 1}
 
-            # Filtro de data
             if data.get("date"):
                 date_val = data["date"]
                 if len(date_val) == 7:  # yyyy-mm
@@ -104,12 +112,10 @@ class SpendingService:
                 else:
                     raise ValueError("Date must be 'YYYY-MM' or 'YYYY-MM-DD'")
             else:
-                # Não passou data -> pega mês atual
                 today_str = datetime.today().strftime("%Y-%m")
                 filters["date"] = get_date_range(today_str)
 
         else:
-            # Consulta normal -> compras à vista (sem is_parent) e compras principais (is_parent == True)
             filters["$or"] = [
                 {"is_parent": {"$exists": False}},  # compras à vista
                 {"is_parent": True}                 # compras principais (parent)

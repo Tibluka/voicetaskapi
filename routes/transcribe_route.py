@@ -3,7 +3,7 @@ import re
 import tempfile
 import json as pyjson
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from werkzeug.utils import secure_filename
 
 from services.spending_service import SpendingService
