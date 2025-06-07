@@ -62,10 +62,20 @@ def transcribe_audio():
             try:
                 spending_service.insert_spending(json_data)
             except ValueError as ve:
-                return jsonify({"error": str(ve)}), 400
+                return jsonify({"transcription": {
+                    "gpt_answer": json_data.get("gpt_answer"),
+                    "description": None,
+                    "consult_results": None,
+                    "chart_data": None
+                }}), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"transcription": {
+                    "gpt_answer": "Ocorreu um erro desconhecido",
+                    "description": None,
+                    "consult_results": None,
+                    "chart_data": None
+                }}), 400
     finally:
         if os.path.exists(temp_filepath):
             os.remove(temp_filepath)
