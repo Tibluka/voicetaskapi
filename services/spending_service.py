@@ -7,6 +7,7 @@ from dateutil.relativedelta import relativedelta
 
 class SpendingService:
     def __init__(self, collection):
+        
         self.collection = collection
 
     def insert_spending(self, data: dict):
@@ -121,21 +122,86 @@ class SpendingService:
                 {"is_parent": True}                 # compras principais (parent)
             ]
 
-        # Ordenação
         operation = data.get("operation")
+
+        # 🆕 Agrupamento por categoria
+        if operation == "CATEGORY":
+            pipeline = [
+                {"$match": filters},
+                {"$group": {
+                    "_id": "$category",
+                    "total": {"$sum": "$value"}
+                }},
+                {"$project": {
+                    "category": "$_id",
+                    "total": 1,
+                    "_id": 0
+                }},
+                {"$sort": {"total": -1}}
+            ]
+            results = list(self.collection.aggregate(pipeline))
+            return results
+
+        # 🆕 Comparativo mensal
+        if operation == "COMPARATIVE":
+            raw_range = data.get("date_range", "")
+            try:
+                from_str, to_str = [s.strip() for s in raw_range.split("a")]
+                date_from = datetime.strptime(from_str, "%Y-%m-%d")
+                date_to = datetime.strptime(to_str, "%Y-%m-%d")
+            except Exception as e:
+                raise ValueError(f"Formato inválido de date_range: {raw_range}") from e
+
+            # Adiciona filtro de data ao existing filters (sem sobrescrever)
+            filters["date"] = {
+                "$gte": date_from,
+                "$lte": date_to
+            }
+
+            pipeline = [
+                {"$match": filters},
+                {"$group": {
+                    "_id": {
+                        "year": {"$year": "$date"},
+                        "month": {"$month": "$date"}
+                    },
+                    "total": {"$sum": "$value"}
+                }},
+                {"$project": {
+                    "month": {
+                        "$concat": [
+                            {
+                                "$cond": [
+                                    {"$lt": ["$_id.month", 10]},
+                                    {"$concat": ["0", {"$toString": "$_id.month"}]},
+                                    {"$toString": "$_id.month"}
+                                ]
+                            },
+                            "/",
+                            {"$toString": "$_id.year"}
+                        ]
+                    },
+                    "total": 1,
+                    "_id": 0
+                }},
+                {"$sort": {"month": 1}}
+            ]
+
+            results = list(self.collection.aggregate(pipeline))
+            return results
+
+        # Ordenação simples
         sort_order = None
         if operation == "MAX":
             sort_order = ("value", DESCENDING)
         elif operation == "MIN":
             sort_order = ("value", ASCENDING)
 
-        # Busca no MongoDB
         if sort_order:
             results = list(self.collection.find(filters).sort([sort_order]).limit(1))
         else:
             results = list(self.collection.find(filters))
 
-        # Converter ObjectId para string
         for r in results:
             r["_id"] = str(r["_id"])
 

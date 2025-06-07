@@ -34,7 +34,10 @@ def transcribe(audio_path):
         
         response = ask_gpt(transcription.text)
 
-        return response
+        return {
+            "gpt": response,
+            "prompt": transcription.text
+        }
 
     except Exception as e:
         print("Erro na transcrição:", e)

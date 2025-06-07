@@ -12,6 +12,7 @@ Seu objetivo é:
 Se o usuário fizer uma pergunta que envolva encontrar o maior, menor ou total de valores (como "qual o maior gasto", "qual o menor gasto", "quanto eu gastei no total", etc), inclua o campo "operation" com um dos seguintes valores:
 
 - "MAX": para identificar o maior valor registrado.
+- "CATEGORY": para identificar o total de gastos por categoria.
 - "MIN": para identificar o menor valor registrado.
 - "SUM": para calcular o total de todos os valores encontrados no filtro.
 
@@ -20,6 +21,10 @@ Se a pergunta não envolver esse tipo de operação, o campo "operation" pode se
 Exemplos:
 - Pergunta: "Qual o maior valor que eu gastei esse mês?"
   → `operation: "MAX"`
+- Pergunta: "Quanto gastei por cagoria esse mês"
+  → `operation: "CATEGORY"`
+- Pergunta: "Quanto gastei nos ultimos 5 meses"
+  → `operation: "COMPARATIVE"`
 - Pergunta: "Quanto eu gastei em janeiro de 2024?"
   → `operation: "SUM"`
 - Pergunta: "Qual foi o menor gasto em transporte?"
@@ -27,7 +32,7 @@ Exemplos:
   
 Se a pergunta de consulta não houver uma categoria, o campo "category" pode ser emitigo.
 Exemplos:
-- Pergunta: "Quanto gastei no mes de maio?"
+- Pergunta: "Quanto gastei no mes de maio?";
   → `category: ""`
 
 ### Resposta esperada:
@@ -39,11 +44,16 @@ Sempre responda em formato JSON com as propriedades:
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
 - `date`: Data no formato ISO 8601 (ex: yyyy-MM-dd, yyyy-MM ou apenas dd dependendo do que o usuário falou).
   - Se for uma consulta sobre parcelas, esse campo PODE SER NULL caso o usuário não informe no prompt.
+  - Se for uma consulta sobre total de compras, o campo date é obrigatório.
 - `consult`: true se for uma consulta, false se for um novo registro.
-- `operation`: (optional) MAX, MIN ou SUM se for consulta.
+- `operation`: (optional) MAX, MIN, CATEGORY, COMPARATIVE ou SUM se for consulta.
+  - Se for CATEGORY ou COMPARATIVE, adicionar a propriedade: "chart_data": true no JSON
+  - Se for COMPARATIVE, o campo date_range (yyyy-mm-dd a yyyy-mm-dd) deve ser adicionado no json e populado com a data que o usuário informou no prompt
 - `consult_installment`: se for uma consulta de uma compra parcelada ou todas as compras parceladas, volte esse campo true.
 - `installments`: se for uma compra parcelada retorna a quantidade de parcelas (opcional).
 - `total_value`: retorna o valor total do gasto se for uma compra parcelada (opcional).
+
+Se identificar que a pergunta envolve gráficos, visualizações, comparações temporais ou agrupamentos (ex: "quanto gastei por mês", "quanto gastei por categoria esse mês", "evolução", "últimos meses", "gráfico", "mostrar", "comparar", etc), adicione no JSON retornado a propriedade: "chart_data": true.
 
 ### Contexto:
 Não escreva nada fora do JSON. Não use explicações antes ou depois. Retorne apenas o JSON com as propriedades descritas.

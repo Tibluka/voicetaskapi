@@ -7,10 +7,12 @@ from flask import Blueprint, request, jsonify, g
 from werkzeug.utils import secure_filename
 
 from services.spending_service import SpendingService
+from services.gpt_analyser import analyse_result
 from services.transcribe import transcribe
+from services.gpt_chart import analyse_chart_intent
+
 from db.mongo import spending_collection
 
-from services.gpt_analyser import analyse_result
 from utils.auth_decorator import token_required
 
 transcribe_bp = Blueprint("transcribe", __name__)
@@ -33,17 +35,27 @@ def transcribe_audio():
         temp_filepath = tmp.name
 
     try:
-        json_str = transcribe(temp_filepath)
-        cleaned_str = re.sub(r"^```json\s*|```$", "", json_str.strip(), flags=re.MULTILINE)
+        transcribed_json = transcribe(temp_filepath)
+        cleaned_str = re.sub(r"^```json\s*|```$", "", transcribed_json["gpt"].strip(), flags=re.MULTILINE)
         json_data = pyjson.loads(cleaned_str)
-
+        
         results = None
         if json_data.get("consult") is True:
             try:
                 results = spending_service.consult_spending(json_data)
-                response = analyse_result(results, json_data.get("description"))
-                cleaned_str = re.sub(r"^```json\s*|```$", "", response.strip(), flags=re.MULTILINE)
-                json_data = pyjson.loads(cleaned_str)
+                analyser = analyse_result(results, json_data.get("description"))
+                cleaned_str = re.sub(r"^```json\s*|```$", "", analyser.strip(), flags=re.MULTILINE)
+
+                # Se o agente inicial sinalizou que é para gerar gráfico
+                if json_data.get("chart_data") is True:
+                    chart_response = analyse_chart_intent(results, transcribed_json["prompt"])
+                    cleaned_chart_str = re.sub(r"^```json\s*|```$", "", chart_response.strip(), flags=re.MULTILINE)
+                    chart_data = pyjson.loads(cleaned_chart_str)
+                    json_data["chart_data"] = chart_data  # substitui bool pelo conteúdo
+                    json_data["gpt_answer"] = pyjson.loads(cleaned_str)["gpt_answer"]
+                else:
+                    json_data = pyjson.loads(cleaned_str)
+                
             except Exception as e:
                 return jsonify({"error": str(e)}), 400
         else:
@@ -62,6 +74,7 @@ def transcribe_audio():
         "transcription": {
             "gpt_answer": json_data.get("gpt_answer"),
             "description": json_data.get("description"),
-            "consult_results": results
+            "consult_results": results,
+            "chart_data": json_data.get("chart_data", False)
         }
     })
