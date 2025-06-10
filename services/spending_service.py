@@ -112,9 +112,6 @@ class SpendingService:
                     filters["date"] = date_val
                 else:
                     raise ValueError("Date must be 'YYYY-MM' or 'YYYY-MM-DD'")
-            else:
-                today_str = datetime.today().strftime("%Y-%m")
-                filters["date"] = get_date_range(today_str)
 
         else:
             filters["$or"] = [
@@ -129,15 +126,15 @@ class SpendingService:
             pipeline = [
                 {"$match": filters},
                 {"$group": {
-                    "_id": "$category",
+                    "_id": "$category",  # Agrupar por category
                     "total": {"$sum": "$value"}
                 }},
                 {"$project": {
-                    "category": "$_id",
-                    "total": 1,
+                    "label": "$_id",     # Projetar category como label
+                    "value": "$total",   # Projetar total como value
                     "_id": 0
                 }},
-                {"$sort": {"total": -1}}
+                {"$sort": {"value": -1}}  # Ordenar por value decrescente
             ]
             results = list(self.collection.aggregate(pipeline))
             return results
