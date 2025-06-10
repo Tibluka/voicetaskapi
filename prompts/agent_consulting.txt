@@ -39,7 +39,7 @@ Exemplos:
 ### Resposta esperada:
 Sempre responda em formato JSON com as propriedades:
 - `gpt_answer`: Mensagem curta explicando o que foi registrado ou consultado.
-- `type`: "SPENDING" ou "REVENUE" Sempre um desses 2 valores.
+- `type`: "SPENDING" ou "REVENUE". Nunca informe outra opção além dessas.
 - `value`: Valor numérico.
 - `category`: Ex: "FOOD", "FUEL", "LEISURE", "PHARMACY", "HOSPITAL", "OTHER".
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
