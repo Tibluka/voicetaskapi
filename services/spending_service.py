@@ -139,17 +139,18 @@ class SpendingService:
             results = list(self.collection.aggregate(pipeline))
             return results
 
-        # 🆕 Comparativo mensal
+       # 🆕 Comparativo mensal
         if operation == "COMPARATIVE":
             raw_range = data.get("date_range", "")
             try:
                 from_str, to_str = [s.strip() for s in raw_range.split("a")]
-                date_from = datetime.strptime(from_str, "%Y-%m-%d")
-                date_to = datetime.strptime(to_str, "%Y-%m-%d")
+                # Manter as datas como string para comparação
+                date_from = from_str  # "2028-01-01"
+                date_to = to_str      # "2028-12-31"
             except Exception as e:
                 raise ValueError(f"Formato inválido de date_range: {raw_range}") from e
 
-            # Adiciona filtro de data ao existing filters (sem sobrescrever)
+            # Filtro de data para campos string (comparação lexicográfica funciona com YYYY-MM-DD)
             filters["date"] = {
                 "$gte": date_from,
                 "$lte": date_to
@@ -159,23 +160,18 @@ class SpendingService:
                 {"$match": filters},
                 {"$group": {
                     "_id": {
-                        "year": {"$year": "$date"},
-                        "month": {"$month": "$date"}
+                        # Extrair ano e mês da string "2028-02-05"
+                        "year": {"$substr": ["$date", 0, 4]},      # "2028"
+                        "month": {"$substr": ["$date", 5, 2]}      # "02"
                     },
                     "total": {"$sum": "$value"}
                 }},
                 {"$project": {
                     "month": {
                         "$concat": [
-                            {
-                                "$cond": [
-                                    {"$lt": ["$_id.month", 10]},
-                                    {"$concat": ["0", {"$toString": "$_id.month"}]},
-                                    {"$toString": "$_id.month"}
-                                ]
-                            },
+                            "$_id.month",    # Já está formatado como "02"
                             "/",
-                            {"$toString": "$_id.year"}
+                            "$_id.year"      # "2028"
                         ]
                     },
                     "total": 1,

@@ -39,7 +39,7 @@ Exemplos:
 ### Resposta esperada:
 Sempre responda em formato JSON com as propriedades:
 - `gpt_answer`: Mensagem curta explicando o que foi registrado ou consultado.
-- `type`: "SPENDING" ou "REVENUE".
+- `type`: "SPENDING" ou "REVENUE" Sempre um desses 2 valores.
 - `value`: Valor numérico.
 - `category`: Ex: "FOOD", "FUEL", "LEISURE", "PHARMACY", "HOSPITAL", "OTHER".
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
@@ -49,7 +49,8 @@ Sempre responda em formato JSON com as propriedades:
 - `consult`: true se for uma consulta, false se for um novo registro.
 - `operation`: (optional) MAX, MIN, CATEGORY, COMPARATIVE ou SUM se for consulta.
   - Se for CATEGORY ou COMPARATIVE, adicionar a propriedade: "chart_data": true no JSON
-  - Se for COMPARATIVE, o campo date_range (yyyy-mm-dd a yyyy-mm-dd) deve ser adicionado no json e populado com a data que o usuário informou no prompt
+  - Se for COMPARATIVE, o campo date_range (yyyy-mm-dd a yyyy-mm-dd) deve ser adicionado no json e populado com os meses que o usuário informou no prompt.
+    - Sempre considerar do primeiro dia do mês ao último dia do mês. Exemplo (Quando gastei nos últimos 3 meses? 2025-03-01 a 2025-06-30)
 - `consult_installment`: se for uma consulta de uma compra parcelada ou todas as compras parceladas, volte esse campo true.
 - `installments`: se for uma compra parcelada retorna a quantidade de parcelas (opcional).
 - `total_value`: retorna o valor total do gasto se for uma compra parcelada (opcional).
