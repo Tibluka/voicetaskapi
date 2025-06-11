@@ -2,18 +2,15 @@ import os
 import re
 import tempfile
 import json as pyjson
-
 from flask import Blueprint, request, jsonify, g
 from werkzeug.utils import secure_filename
-
 from services.spending_service import SpendingService
 from services.gpt_analyser import analyse_result
 from services.transcribe import transcribe
 from services.gpt_chart import analyse_chart_intent
-
 from db.mongo import spending_collection
-
 from utils.auth_decorator import token_required
+from utils.convert_utils import convert_object_ids
 
 transcribe_bp = Blueprint("transcribe", __name__)
 
@@ -43,7 +40,7 @@ def transcribe_audio():
         if json_data.get("consult") is True:
             try:
                 results = spending_service.consult_spending(json_data)
-                analyser = analyse_result(results, json_data.get("description"))
+                analyser = analyse_result(results, transcribed_json["prompt"])
                 cleaned_str = re.sub(r"^```json\s*|```$", "", analyser.strip(), flags=re.MULTILINE)
 
                 # Se o agente inicial sinalizou que é para gerar gráfico
@@ -84,7 +81,7 @@ def transcribe_audio():
         "transcription": {
             "gpt_answer": json_data.get("gpt_answer"),
             "description": json_data.get("description"),
-            "consult_results": results,
+            "consult_results": convert_object_ids(results),
             "chart_data": json_data.get("chart_data", False)
         }
     })

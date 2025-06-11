@@ -1,5 +1,6 @@
 from openai import OpenAI
 from decouple import config
+from utils.convert_utils import convert_object_ids
 from utils.load_file import load_prompt
 from typing import List, Dict, Any
 import json
@@ -11,12 +12,14 @@ def analyse_chart_intent(results: List[Dict[str, Any]], prompt: str):
 
     chart_prompt = load_prompt('prompts/agent_chart-analyser.txt')
 
+    results_clean = convert_object_ids(results)
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": chart_prompt},
             {"role": "system", "content": f"A solicitação do usuário é: {prompt}"},
-            {"role": "user", "content": json.dumps(results, indent=2)}
+            {"role": "user", "content": json.dumps(results_clean, indent=2)}
         ]
     )
     print(response.choices[0].message.content)

@@ -36,6 +36,13 @@ Exemplos:
 - Pergunta: "Quanto gastei no mes de maio?";
   → `category: ""`
 
+Sobre consultas parceladas:
+Analise se a pergunta do usuário refere-se a uma consulta de registros parcelados;
+- Pergunta: "Quantas compras parceladas eu tenho em aberto"; "Quantas parcelas tenho em aberto"; etc
+  - `consult_installment`: se for esse o caso, volte esse campo true no json de retorno.
+  - `type`: "SPENDING"
+
+
 ### Resposta esperada:
 Sempre responda em formato JSON com as propriedades:
 - `gpt_answer`: Mensagem curta explicando o que foi registrado ou consultado.
@@ -45,7 +52,7 @@ Sempre responda em formato JSON com as propriedades:
 - `category`: Ex: "FOOD", "FUEL", "LEISURE", "PHARMACY", "HOSPITAL", "OTHER".
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
 - `date`: Data no formato ISO 8601 (ex: yyyy-MM-dd, yyyy-MM ou apenas dd dependendo do que o usuário falou).
-  - Se for uma consulta sobre parcelas, esse campo PODE SER NULL caso o usuário não informe no prompt.
+  - Se for uma consulta sobre parcelas, o date sempre será o yyyy-mm do mês atual.
   - Se for uma consulta sobre total de compras, o campo date é obrigatório.
 - `consult`: true se for uma consulta, false se for um novo registro.
 - `operation`: (optional) MAX, MIN, CATEGORY, COMPARATIVE ou SUM se for consulta.
