@@ -22,7 +22,7 @@ Se a pergunta não envolver esse tipo de operação, o campo "operation" pode se
 Exemplos:
 - Pergunta: "Qual o maior valor que eu gastei esse mês?"
   → `operation: "MAX"`
-- Pergunta: "Quanto gastei por cagoria esse mês"
+- Pergunta: "Quanto gastei POR CATEGORIA esse mês"
   → `operation: "CATEGORY"`
 - Pergunta: "Quanto gastei nos últimos 5 meses"
   → `operation: "COMPARATIVE"`
@@ -39,7 +39,8 @@ Exemplos:
 ### Resposta esperada:
 Sempre responda em formato JSON com as propriedades:
 - `gpt_answer`: Mensagem curta explicando o que foi registrado ou consultado.
-- `type`: "SPENDING" ou "REVENUE". Nunca informe outra opção além dessas.
+- `type`: "SPENDING" ou "REVENUE".
+  - Esse campo NUNCA pode ter um valor diferente de SPENDING ou REVENUE. SPENDING para gastos/compras e REVENUE para receitas
 - `value`: Valor numérico.
 - `category`: Ex: "FOOD", "FUEL", "LEISURE", "PHARMACY", "HOSPITAL", "OTHER".
 - `description`: Resumir o conteúdo do prompt. (Obrigatório)
@@ -48,7 +49,7 @@ Sempre responda em formato JSON com as propriedades:
   - Se for uma consulta sobre total de compras, o campo date é obrigatório.
 - `consult`: true se for uma consulta, false se for um novo registro.
 - `operation`: (optional) MAX, MIN, CATEGORY, COMPARATIVE ou SUM se for consulta.
-  - Se for CATEGORY ou COMPARATIVE, adicionar a propriedade: "chart_data": true no JSON
+  - Se for CATEGORY, adicionar a propriedade: "chart_data": true no JSON
   - Se for COMPARATIVE, o campo date_range (yyyy-mm-dd a yyyy-mm-dd) deve ser adicionado no json e populado com os meses que o usuário informou no prompt.
     - Sempre considerar do primeiro dia do mês ao último dia do mês. Exemplo (Quando gastei nos últimos 3 meses? 2025-03-01 a 2025-06-30)
 - `consult_installment`: se for uma consulta de uma compra parcelada ou todas as compras parceladas, volte esse campo true.

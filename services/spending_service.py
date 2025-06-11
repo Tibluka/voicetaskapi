@@ -1,4 +1,5 @@
 
+from bson import ObjectId
 from pymongo import DESCENDING, ASCENDING
 from flask import g
 from utils.date_utils import get_date_range
@@ -63,7 +64,7 @@ class SpendingService:
             for i in range(installments - 1):
                 installment_date = (base_date + relativedelta(months=i + 1)).strftime("%Y-%m-%d")
                 doc = {
-                    "user_id": user_id,
+                    "userId": user_id,
                     "description": data["description"],
                     "value": round(value_per_installment, 2),
                     "type": data["type"],
@@ -77,6 +78,36 @@ class SpendingService:
 
             self.collection.insert_many(docs)
 
+    def remove_spending(self, spending_id: str):
+        logged_user = g.logged_user
+        user_id = logged_user.get('id')
+
+        try:
+            obj_id = ObjectId(spending_id)
+        except Exception:
+            raise ValueError("Invalid spending ID format")
+
+        # Busca o documento para verificar se existe e se pertence ao usuário
+        spending = self.collection.find_one({"_id": obj_id, "userId": user_id})
+        if not spending:
+            raise ValueError("Spending not found or access denied")
+
+        # Se for um gasto parcelado (pai), remover também as parcelas filhas
+        if spending.get("is_parent"):
+            # Remove o documento pai e os filhos que tenham parent_id igual ao id do pai
+            self.collection.delete_many({
+                "$or": [
+                    {"_id": obj_id},
+                    {"parent_id": obj_id}
+                ],
+                "userId": user_id  # garante que só remove do usuário logado
+            })
+        else:
+            # Remove apenas o documento único ou parcela (sem filhos)
+            self.collection.delete_one({"_id": obj_id, "userId": user_id})
+
+        return {"message": "Spending removed successfully"}
+    
     def consult_spending(self, data: dict):
         logged_user = g.logged_user
         user_id = logged_user.get('id')

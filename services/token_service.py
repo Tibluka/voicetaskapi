@@ -5,11 +5,12 @@ SECRET_KEY = "sua_chave_secreta_super_segura"  # Troque por algo seguro e confid
 
 class TokenService:
     @staticmethod
-    def generate_token(payload, expires_in_minutes=60):
+    def generate_token(payload, expires_in_minutes=1440):  # 24 horas = 1440 minutos
         payload_copy = payload.copy()
         payload_copy["exp"] = datetime.datetime.utcnow() + datetime.timedelta(minutes=expires_in_minutes)
         token = jwt.encode(payload_copy, SECRET_KEY, algorithm="HS256")
         return token
+
 
     @staticmethod
     def verify_token(token):
