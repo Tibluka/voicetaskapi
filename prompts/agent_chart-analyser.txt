@@ -21,7 +21,8 @@ INSTRUÇÕES:
 2. Escolha o chartType com base no conteúdo:
    - Use 'bar' se os dados forem referentes a comparativos.
    - Use 'pie' ou 'bar' se os dados estiverem agrupados por categorias ou nomes.
-   - Use 'line' se houver variação temporal (ex: por dia, mês, ano). Somente utilize esse caso haja mais de 1 registro.
+   - Use 'line' se houver variação temporal (ex: por dia, mês, ano). 
+    - Nunca utilizar esse tipo de gráfico para resultados com apenas 1 registro.
    - Use 'radar' ou 'pyramid' apenas se for um comparativo de múltiplas dimensões não lineares.
 
 3. Para a chave "data":

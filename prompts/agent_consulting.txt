@@ -24,7 +24,7 @@ Exemplos:
   → `operation: "MAX"`
 - Pergunta: "Quanto gastei por cagoria esse mês"
   → `operation: "CATEGORY"`
-- Pergunta: "Quanto gastei nos ultimos 5 meses"
+- Pergunta: "Quanto gastei nos últimos 5 meses"
   → `operation: "COMPARATIVE"`
 - Pergunta: "Quanto eu gastei em janeiro de 2024?"
   → `operation: "SUM"`
