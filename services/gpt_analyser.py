@@ -19,8 +19,8 @@ def analyse_result(results: List[Dict[str, Any]], prompt: str):
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": f"{agent_analyser}"},
-            {"role": "system", "content": f"A solicitação do usuário é: {prompt}"},
-            {"role": "user", "content": json.dumps(results_clean, indent=2)}
+            {"role": "assistant", "content": f"A solicitação do usuário é: {prompt}"},
+            {"role": "user", "content": f"{str(results_clean)}"}
         ]
     )
     

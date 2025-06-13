@@ -52,7 +52,7 @@ def transcribe_audio():
                     json_data["gpt_answer"] = pyjson.loads(cleaned_str)["gpt_answer"]
                 else:
                     json_data = pyjson.loads(cleaned_str)
-                
+                print(results)
             except Exception as e:
                 return jsonify({"error": str(e)}), 400
         else:
