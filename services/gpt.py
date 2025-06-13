@@ -2,6 +2,7 @@ from openai import OpenAI
 from decouple import config
 from datetime import datetime
 from utils.load_file import load_prompt
+from zoneinfo import ZoneInfo
 
 API_KEY = config("API_KEY_OPENAI")
 
@@ -10,7 +11,8 @@ def ask_gpt(prompt: str):
         
     agent_consulting = load_prompt('prompts/agent_consulting.txt')
     
-    today = datetime.now()
+    today = datetime.now(ZoneInfo("America/Sao_Paulo"))
+    print(today)
     
     response = client.chat.completions.create(
     model="gpt-4o-mini",

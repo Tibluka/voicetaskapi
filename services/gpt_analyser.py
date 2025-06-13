@@ -16,7 +16,7 @@ def analyse_result(results: List[Dict[str, Any]], prompt: str):
     results_clean = convert_object_ids(results)
     
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="o4-mini",
         messages=[
             {"role": "system", "content": f"{agent_analyser}"},
             {"role": "assistant", "content": f"A solicitação do usuário é: {prompt}"},
