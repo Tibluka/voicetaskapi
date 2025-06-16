@@ -4,17 +4,20 @@ import tempfile
 import json as pyjson
 from flask import Blueprint, request, jsonify, g
 from werkzeug.utils import secure_filename
+from services.gpt_profile_analyser import analyse_profile_result
 from services.spending_service import SpendingService
 from services.gpt_analyser import analyse_result
 from services.transcribe import transcribe
 from services.gpt_chart import analyse_chart_intent
-from db.mongo import spending_collection
+from db.mongo import spending_collection, profile_config_collection
 from utils.auth_decorator import token_required
 from utils.convert_utils import convert_object_ids
+from services.profile_config_service import ProfileConfigService
 
 transcribe_bp = Blueprint("transcribe", __name__)
 
 spending_service = SpendingService(spending_collection)
+profile_config_service = ProfileConfigService(profile_config_collection)
 
 @transcribe_bp.route("/transcribe", methods=["POST"])
 @token_required
@@ -48,22 +51,31 @@ def transcribe_audio():
                 }}), 200
         if json_data.get("consult") is True:
             try:
-                results = spending_service.consult_spending(json_data)
-                analyser = analyse_result(results, transcribed_json["prompt"])
-                cleaned_str = re.sub(r"^```json\s*|```$", "", analyser.strip(), flags=re.MULTILINE)
+                if json_data.get("type") == "PROFILE_CONFIG":
+                    # Nova função para tratar consulta de perfil
+                    profile_results = profile_config_service.consult_profile_config(json_data)
+                    answer = analyse_profile_result(profile_results["profile-config"], transcribed_json["prompt"])
 
-                # Se o agente inicial sinalizou que é para gerar gráfico
-                if json_data.get("chart_data") is True:
-                    chart_response = analyse_chart_intent(results, transcribed_json["prompt"])
-                    cleaned_chart_str = re.sub(r"^```json\s*|```$", "", chart_response.strip(), flags=re.MULTILINE)
-                    chart_data = pyjson.loads(cleaned_chart_str)
-                    json_data["chart_data"] = chart_data  # substitui bool pelo conteúdo
-                    json_data["gpt_answer"] = pyjson.loads(cleaned_str)["gpt_answer"]
+                    json_data["gpt_answer"] = pyjson.loads(answer)["gpt_answer"]
                 else:
-                    json_data = pyjson.loads(cleaned_str)
-                print(results)
+                    results = spending_service.consult_spending(json_data)
+                    analyser = analyse_result(results, transcribed_json["prompt"])
+                    cleaned_str = re.sub(r"^```json\s*|```$", "", analyser.strip(), flags=re.MULTILINE)
+
+                    if json_data.get("chart_data") is True:
+                        chart_response = analyse_chart_intent(results, transcribed_json["prompt"])
+                        cleaned_chart_str = re.sub(r"^```json\s*|```$", "", chart_response.strip(), flags=re.MULTILINE)
+                        chart_data = pyjson.loads(cleaned_chart_str)
+                        json_data["chart_data"] = chart_data
+                        json_data["gpt_answer"] = pyjson.loads(cleaned_str)["gpt_answer"]
+                    else:
+                        json_data = pyjson.loads(cleaned_str)
+
+                    print(results)
+
             except Exception as e:
                 return jsonify({"error": str(e)}), 400
+
         else:
             try:
                 spending_service.insert_spending(json_data)
