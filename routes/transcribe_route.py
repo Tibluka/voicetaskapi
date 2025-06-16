@@ -37,6 +37,15 @@ def transcribe_audio():
         json_data = pyjson.loads(cleaned_str)
         
         results = None
+        
+        if json_data.get("answer_blocked") is True:
+            return jsonify({"transcription": {
+                    "gpt_answer": json_data.get("gpt_answer"),
+                    "description": None,
+                    "consult_results": None,
+                    "chart_data": None,
+                    "results": None
+                }}), 200
         if json_data.get("consult") is True:
             try:
                 results = spending_service.consult_spending(json_data)
