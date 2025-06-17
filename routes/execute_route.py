@@ -52,6 +52,7 @@ def execute():
                 analyser_result = analyse_result(query_result, transcribed_text)
                 cleaned_str = re.sub(r"^```json\\s*|```$", "", analyser_result.strip(), flags=re.MULTILINE)
                 json_data.update(pyjson.loads(cleaned_str))
+                json_data["consult_results"] = []
 
                 if json_data.get("chart_data") is True:
                     chart_response = analyse_chart_intent(query_result.get("spendings", []), transcribed_text)
@@ -88,7 +89,7 @@ def execute():
         "transcription": {
             "gpt_answer": json_data.get("gpt_answer"),
             "description": json_data.get("description"),
-            "consult_results": convert_object_ids(json_data.get("consult_results")) or [],
+            "consult_results": json_data.get("consult_results"),
             "chart_data": json_data.get("chart_data", False)
         }
-    })
+    }), 200
