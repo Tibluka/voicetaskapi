@@ -1,29 +1,23 @@
-from spending_service import SpendingService
-from profile_config_service import ProfileConfigService
+from services.spending_service import SpendingService
+from services.profile_config_service import ProfileConfigService
 
 class QueryOrchestrator:
-    def __init__(self, db, user_id: str):
+    def __init__(self, spendingDB, profileConfigDB, user_id: str):
         self.user_id = user_id
-        self.spending_service = SpendingService(db, user_id)
-        self.profile_config_service = ProfileConfigService(db, user_id)
+        self.spending_service = SpendingService(spendingDB)
+        self.profile_config_service = ProfileConfigService(profileConfigDB)
 
-    async def execute_queries(self, query_instructions: dict) -> dict:
-        """
-        Recebe o JSON com instruções da IA (ex: { collection: 'spendings', filters: {...} })
-        e executa as consultas necessárias.
-
-        Se mais de uma coleção for necessária, ele lida com isso aqui.
-        """
-        collections = query_instructions.get("collections", [])
+    def execute_queries(self, query_instructions: dict) -> dict:
+        collections_needed = query_instructions.get("collections_needed", [])
         result = {}
 
-        for collection in collections:
-            if collection["name"] == "spendings":
-                spendings = await self.spending_service.get_spendings(collection.get("filters", {}))
+        for collection in collections_needed:
+            if collection == "spendings":
+                spendings = self.spending_service.consult_spending(query_instructions)
                 result["spendings"] = spendings
 
-            elif collection["name"] == "profile_config":
-                config = await self.profile_config_service.get_config()
+            elif collection == "profile_config":
+                config = self.profile_config_service.consult_profile_config(query_instructions)
                 result["profile_config"] = config
 
         return result

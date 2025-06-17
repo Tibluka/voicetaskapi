@@ -13,6 +13,7 @@ from db.mongo import spending_collection, profile_config_collection
 from utils.auth_decorator import token_required
 from utils.convert_utils import convert_object_ids
 from services.profile_config_service import ProfileConfigService
+from services.query_orchestrator import QueryOrchestrator
 
 transcribe_bp = Blueprint("transcribe", __name__)
 
@@ -36,42 +37,36 @@ def transcribe_audio():
 
     try:
         transcribed_json = transcribe(temp_filepath)
-        cleaned_str = re.sub(r"^```json\s*|```$", "", transcribed_json["gpt"].strip(), flags=re.MULTILINE)
+        cleaned_str = re.sub(r'^```(json)?\s*|\s*```$', '', transcribed_json["gpt"].strip(), flags=re.MULTILINE)
         json_data = pyjson.loads(cleaned_str)
-        
-        results = None
         
         if json_data.get("answer_blocked") is True:
             return jsonify({"transcription": {
-                    "gpt_answer": json_data.get("gpt_answer"),
-                    "description": None,
-                    "consult_results": None,
-                    "chart_data": None,
-                    "results": None
-                }}), 200
+                "gpt_answer": json_data.get("gpt_answer"),
+                "description": None,
+                "consult_results": None,
+                "chart_data": None,
+                "results": None
+            }}), 200
+
+        results = {}
+
         if json_data.get("consult") is True:
             try:
-                if json_data.get("type") == "PROFILE_CONFIG":
-                    # Nova função para tratar consulta de perfil
-                    profile_results = profile_config_service.consult_profile_config(json_data)
-                    answer = analyse_profile_result(profile_results["profile-config"], transcribed_json["prompt"])
+                orchestrator = QueryOrchestrator(spending_collection, profile_config_collection, g.logged_user.get("id"))
+                query_result = orchestrator.execute_queries(json_data)
 
-                    json_data["gpt_answer"] = pyjson.loads(answer)["gpt_answer"]
-                else:
-                    results = spending_service.consult_spending(json_data)
-                    analyser = analyse_result(results, transcribed_json["prompt"])
-                    cleaned_str = re.sub(r"^```json\s*|```$", "", analyser.strip(), flags=re.MULTILINE)
+                analyser_result = analyse_result(query_result, transcribed_json["prompt"])
+                cleaned_str = re.sub(r"^```json\\s*|```$", "", analyser_result.strip(), flags=re.MULTILINE)
+                json_data.update(pyjson.loads(cleaned_str))
 
-                    if json_data.get("chart_data") is True:
-                        chart_response = analyse_chart_intent(results, transcribed_json["prompt"])
-                        cleaned_chart_str = re.sub(r"^```json\s*|```$", "", chart_response.strip(), flags=re.MULTILINE)
-                        chart_data = pyjson.loads(cleaned_chart_str)
-                        json_data["chart_data"] = chart_data
-                        json_data["gpt_answer"] = pyjson.loads(cleaned_str)["gpt_answer"]
-                    else:
-                        json_data = pyjson.loads(cleaned_str)
+                if json_data.get("chart_data") is True:
+                    chart_response = analyse_chart_intent(query_result.get("spendings", []), transcribed_json["prompt"])
+                    cleaned_chart_str = re.sub(r"^```json\\s*|```$", "", chart_response.strip(), flags=re.MULTILINE)
+                    json_data["chart_data"] = pyjson.loads(cleaned_chart_str)
 
-                    print(results)
+                if json_data.get("config_field") != "monthly_limit":
+                    json_data["consult_results"] = query_result.get("spendings", [])
 
             except Exception as e:
                 return jsonify({"error": str(e)}), 400
@@ -88,12 +83,13 @@ def transcribe_audio():
                 }}), 200
 
     except Exception as e:
+        print(str(e))
         return jsonify({"transcription": {
-                    "gpt_answer": "Ocorreu um erro desconhecido",
-                    "description": None,
-                    "consult_results": None,
-                    "chart_data": None
-                }}), 400
+            "gpt_answer": "Ocorreu um erro desconhecido",
+            "description": None,
+            "consult_results": None,
+            "chart_data": None
+        }}), 400
     finally:
         if os.path.exists(temp_filepath):
             os.remove(temp_filepath)
@@ -102,7 +98,7 @@ def transcribe_audio():
         "transcription": {
             "gpt_answer": json_data.get("gpt_answer"),
             "description": json_data.get("description"),
-            "consult_results": convert_object_ids(results),
+            "consult_results": convert_object_ids(json_data.get("consult_results")),
             "chart_data": json_data.get("chart_data", False)
         }
     })

@@ -115,6 +115,9 @@ class SpendingService:
         filters = {
             "userId": user_id  # 🔥 Filtro por usuário
         }
+        
+        if data.get("type") == "PROFILE_CONFIG":
+            data["type"] = "SPENDING"
 
         # Filtros básicos
         for k in ["type", "category"]:
