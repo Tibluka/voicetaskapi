@@ -2,18 +2,16 @@ import os
 import re
 import tempfile
 import json as pyjson
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
-from services.gpt_profile_analyser import analyse_profile_result
+from routes.execute_route import execute
+from services.gpt import ask_gpt
 from services.spending_service import SpendingService
-from services.gpt_analyser import analyse_result
 from services.transcribe import transcribe
-from services.gpt_chart import analyse_chart_intent
 from db.mongo import spending_collection, profile_config_collection
 from utils.auth_decorator import token_required
 from utils.convert_utils import convert_object_ids
 from services.profile_config_service import ProfileConfigService
-from services.query_orchestrator import QueryOrchestrator
 
 transcribe_bp = Blueprint("transcribe", __name__)
 
@@ -36,69 +34,20 @@ def transcribe_audio():
         temp_filepath = tmp.name
 
     try:
-        transcribed_json = transcribe(temp_filepath)
-        cleaned_str = re.sub(r'^```(json)?\s*|\s*```$', '', transcribed_json["gpt"].strip(), flags=re.MULTILINE)
-        json_data = pyjson.loads(cleaned_str)
+        transcribed_text = transcribe(temp_filepath)
         
-        if json_data.get("answer_blocked") is True:
-            return jsonify({"transcription": {
-                "gpt_answer": json_data.get("gpt_answer"),
-                "description": None,
-                "consult_results": None,
-                "chart_data": None,
-                "results": None
-            }}), 200
+        if transcribed_text == None:            
+            return jsonify({
+                "erro": "Erro ao transcrever o áudio"
+            }), 400
+            
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
 
-        results = {}
-
-        if json_data.get("consult") is True:
-            try:
-                orchestrator = QueryOrchestrator(spending_collection, profile_config_collection, g.logged_user.get("id"))
-                query_result = orchestrator.execute_queries(json_data)
-
-                analyser_result = analyse_result(query_result, transcribed_json["prompt"])
-                cleaned_str = re.sub(r"^```json\\s*|```$", "", analyser_result.strip(), flags=re.MULTILINE)
-                json_data.update(pyjson.loads(cleaned_str))
-
-                if json_data.get("chart_data") is True:
-                    chart_response = analyse_chart_intent(query_result.get("spendings", []), transcribed_json["prompt"])
-                    cleaned_chart_str = re.sub(r"^```json\\s*|```$", "", chart_response.strip(), flags=re.MULTILINE)
-                    json_data["chart_data"] = pyjson.loads(cleaned_chart_str)
-
-                if json_data.get("config_field") != "monthly_limit":
-                    json_data["consult_results"] = query_result.get("spendings", [])
-
-            except Exception as e:
-                return jsonify({"error": str(e)}), 400
-
-        else:
-            try:
-                spending_service.insert_spending(json_data)
-            except ValueError as ve:
-                return jsonify({"transcription": {
-                    "gpt_answer": json_data.get("gpt_answer"),
-                    "description": None,
-                    "consult_results": None,
-                    "chart_data": None
-                }}), 200
-
-    except Exception as e:
-        print(str(e))
-        return jsonify({"transcription": {
-            "gpt_answer": "Ocorreu um erro desconhecido",
-            "description": None,
-            "consult_results": None,
-            "chart_data": None
-        }}), 400
     finally:
         if os.path.exists(temp_filepath):
             os.remove(temp_filepath)
 
     return jsonify({
-        "transcription": {
-            "gpt_answer": json_data.get("gpt_answer"),
-            "description": json_data.get("description"),
-            "consult_results": convert_object_ids(json_data.get("consult_results")),
-            "chart_data": json_data.get("chart_data", False)
-        }
-    })
+        "transcribed_text": transcribed_text
+    }), 200

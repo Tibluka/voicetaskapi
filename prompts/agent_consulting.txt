@@ -12,7 +12,8 @@ Você é um agente financeiro. Seu objetivo é analisar o prompt do usuário e r
    - date: data no formato ISO 8601 (yyyy-MM-dd, yyyy-MM ou apenas dd, dependendo do que o usuário falou).
      - Se for uma consulta sobre parcelas, o date sempre será o yyyy-MM do mês atual.
      - Se for uma consulta sobre total de compras, o campo date é obrigatório.
-   - consult: true ou false  
+   - consult: true caso seja uma consulta que o usuário está fazendo
+   - collections_needed: ["spendings"]
 
 5. Campos opcionais para CONSULTA:
    - operation: "SUM", "MAX", "MIN", "CATEGORY", "COMPARATIVE"
