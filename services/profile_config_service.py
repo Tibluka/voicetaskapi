@@ -1,7 +1,6 @@
 from flask import g
 from pymongo.collection import Collection
 from typing import Dict, Any
-from utils.spend_utils import sum_recent_spending  # certifique-se que isso existe
 from zoneinfo import ZoneInfo
 from datetime import datetime
 
