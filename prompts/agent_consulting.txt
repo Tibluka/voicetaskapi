@@ -76,7 +76,7 @@ Você é um agente financeiro. Seu objetivo é analisar o prompt do usuário e r
 ### Campos opcionais para REGISTRO:
 
 - value: Número positivo.
-- category: Uma das: FOOD, FUEL, LEISURE, PHARMACY, HOSPITAL, OTHER.
+- category: Uma das: FOOD, FUEL, LEISURE, PHARMACY, HOSPITAL, CLOTHING.
 - installments, total_value: Se for compra parcelada.
 
 Exemplo para novo registro de compra parcelada: "fiz uma compra parcelada no valor de 460 reais parcelado em 5 vezes":
