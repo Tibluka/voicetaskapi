@@ -44,6 +44,15 @@ def execute():
                     "results": None
                 }}), 200
 
+        if json_data.get("greeting") is True:
+                return jsonify({"transcription": {
+                    "gpt_answer": json_data.get("gpt_answer"),
+                    "description": None,
+                    "consult_results": None,
+                    "chart_data": None,
+                    "results": None
+                }}), 200
+
         if json_data.get("consult") is True:
             try:
                 orchestrator = QueryOrchestrator(spending_collection, profile_config_collection, g.logged_user.get("id"))
