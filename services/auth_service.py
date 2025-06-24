@@ -12,20 +12,43 @@ class AuthService:
 
     def create_user(self, email, password, name, phone):
         if self.user_collection.find_one({"email": email}):
-            raise ValueError("User already exists")
+            raise ValueError("E-mail já cadastrado")
         
         hashed_password = generate_password_hash(password)
         user = {
             "email": email,
             "password": hashed_password,
             "name": name,
-            "phone": phone
+            "phone": phone,
+            "bio": "",
+            "avatar": "",
+            "status": "PENDING"
         }
 
         result = self.user_collection.insert_one(user)
 
+        # Gera código de ativação igual ao fluxo de esqueceu senha
+        code = str(secrets.randbelow(900_000) + 100_000)
+        code_hash = hashlib.sha256(code.encode()).hexdigest()
+        expires = datetime.utcnow() + timedelta(minutes=15)
+        self.password_resets.insert_one({
+            "userId": result.inserted_id,
+            "tokenHash": code_hash,
+            "expiresAt": expires,
+            "used": False,
+            "createdAt": datetime.utcnow()
+        })
+        # Monta link de ativação
+        activation_link = f"https://voicetaskapi.onrender.com/activate?code={code}&email={email}"
+        # Envia e-mail de ativação (template 2)
+        send_reset_email_with_template(
+            to_email=email,
+            template_id=2,
+            params={"ACTIVATION_LINK": activation_link, "EXPIRATION": "15 minutos"}
+        )
+
         return {
-            "message": "User created successfully",
+            "message": "Usuário criado com sucesso",
             "id": str(result.inserted_id)
         }
 
@@ -33,6 +56,9 @@ class AuthService:
         user = self.user_collection.find_one({"email": email})
         if not user:
             return None
+        
+        if user.get("status") == "PENDING":
+            raise ValueError("Usuário está pendente de ativação.")
         
         if check_password_hash(user["password"], password):
             return user

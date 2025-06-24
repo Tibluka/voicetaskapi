@@ -1,5 +1,5 @@
 from bson import ObjectId
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, render_template_string
 from services.auth_service import AuthService
 from services.token_service import TokenService
 from db.mongo import user_collection, password_resets
@@ -18,7 +18,13 @@ def login():
     if not email or not password:
         return jsonify({"error": "Email and password are required"}), 400
 
-    user = auth_service.authenticate(email, password)
+    try:
+        user = auth_service.authenticate(email, password)
+    except ValueError as e:
+        if str(e) == "Usuário está pendente de ativação.":
+            return jsonify({"error": str(e)}), 403
+        return jsonify({"error": str(e)}), 400
+
     if not user:
         return jsonify({"error": "Invalid email or password"}), 401
 
@@ -71,10 +77,6 @@ def get_current_user():
 
         return jsonify(user_to_dto(user_db)), 200
 
-    except TokenService.ExpiredTokenError:
-        return jsonify({"error": "Token expired"}), 401
-    except TokenService.InvalidTokenError:
-        return jsonify({"error": "Invalid token"}), 401
     except Exception as e:
         return jsonify({"error": "Authentication failed"}), 401
     
@@ -149,3 +151,37 @@ def reset_password():
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": "Erro ao resetar senha."}), 500
+
+@auth_bp.route("/auth/activate", methods=["GET"])
+def activate_account():
+    email = request.args.get("email")
+    code = request.args.get("code")
+
+    if not email or not code:
+        return render_template_string("<h2>Erro: Email e código são obrigatórios.</h2>"), 400
+
+    try:
+        pr = auth_service.validate_token(email, code)
+        # Ativa o usuário
+        user_collection.update_one(
+            {"_id": pr["userId"]},
+            {"$set": {"status": "ACTIVE"}}
+        )
+        # Marca o token como usado
+        auth_service.password_resets.update_one(
+            {"_id": pr["_id"]},
+            {"$set": {"used": True}}
+        )
+        return render_template_string("""
+            <html>
+            <head><title>Conta ativada</title></head>
+            <body style='font-family:sans-serif;text-align:center;margin-top:10%'>
+                <h1>Conta ativada com sucesso!</h1>
+                <p>Você já pode fazer login normalmente.</p>
+            </body>
+            </html>
+        """), 200
+    except ValueError as e:
+        return render_template_string(f"<h2>Erro: {str(e)}</h2>"), 400
+    except Exception as e:
+        return render_template_string("<h2>Erro ao ativar conta.</h2>"), 500
