@@ -16,6 +16,9 @@ def analyse_chart_intent(results: List[Dict[str, Any]], prompt: str):
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
+        max_tokens=512,  # Limitar tokens para acelerar resposta
+        temperature=0.2, # Menor variação, respostas mais diretas
+        top_p=0.8,
         messages=[
             {"role": "system", "content": chart_prompt},
             {"role": "system", "content": f"A solicitação do usuário é: {prompt}"},

@@ -22,7 +22,10 @@ def analyse_profile_result(config: Dict[str, Any], prompt: str):
         config_clean = profile_config_service.create_default_profile_config(5000, 3000)
     
     response = client.chat.completions.create(
-        model="o4-mini",
+        model="gpt-4o-mini",
+        max_tokens=512,  # Limitar tokens para acelerar resposta
+        temperature=0.2, # Menor variação, respostas mais diretas
+        top_p=0.8,
         messages=[
             {"role": "system", "content": f"{agent_profile_analyser}"},
             {"role": "assistant", "content": f"A solicitação do usuário é: {prompt}"},

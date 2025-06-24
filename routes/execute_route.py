@@ -89,7 +89,7 @@ def execute():
         "transcription": {
             "gpt_answer": json_data.get("gpt_answer"),
             "description": json_data.get("description"),
-            "consult_results": json_data.get("consult_results"),
-            "chart_data": json_data.get("chart_data", False)
+            "consult_results": convert_object_ids(json_data.get("consult_results")),
+            "chart_data": convert_object_ids(json_data.get("chart_data", False))
         }
     }), 200
