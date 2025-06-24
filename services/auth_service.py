@@ -39,7 +39,7 @@ class AuthService:
             "createdAt": datetime.utcnow()
         })
         # Monta link de ativação
-        activation_link = f"https://voicetaskapi.onrender.com/activate?code={code}&email={email}"
+        activation_link = f"https://voicetaskapi.onrender.com/auth/activate?code={code}&email={email}"
         # Envia e-mail de ativação (template 2)
         send_reset_email_with_template(
             to_email=email,
