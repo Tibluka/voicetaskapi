@@ -21,6 +21,7 @@ def ask_gpt(prompt: str):
     top_p=0.8, 
     messages=[
             {"role": "system", "content": f"{agent_consulting}"},
+            {"role": "assistant", "content": "Atenção aos campos obrigatórios do JSON."},
             {"role": "system", "content": f"Hoje é {today.date()}. Se o usuário disser 'ontem', use a data de hoje menos um dia."},
             {"role": "user", "content": prompt}
     ])
