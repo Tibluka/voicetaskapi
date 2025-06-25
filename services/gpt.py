@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 API_KEY = config("API_KEY_OPENAI")
 
-def ask_gpt(prompt: str):
+def ask_gpt(prompt: str, context: str):
     client = OpenAI(api_key=API_KEY)
         
     agent_consulting = load_prompt('prompts/agent_consulting.txt')
@@ -21,8 +21,8 @@ def ask_gpt(prompt: str):
     top_p=0.8, 
     messages=[
             {"role": "system", "content": f"{agent_consulting}"},
-            {"role": "assistant", "content": "Atenção aos campos obrigatórios do JSON."},
             {"role": "system", "content": f"Hoje é {today.date()}. Se o usuário disser 'ontem', use a data de hoje menos um dia."},
+            {"role": "assistant", "content": f"Mensagens anteriores de contexto: {context}"},
             {"role": "user", "content": prompt}
     ])
     print(response.choices[0].message.content)

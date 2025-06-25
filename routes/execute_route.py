@@ -9,6 +9,7 @@ from services.query_orchestrator import QueryOrchestrator
 import re
 import os
 import json as pyjson
+from typing import List, Dict, Any
 
 from utils.auth_decorator import token_required
 from utils.convert_utils import convert_object_ids
@@ -23,6 +24,7 @@ profile_config_service = ProfileConfigService(profile_config_collection)
 def execute():
     data = request.get_json()
     transcribed_text = data.get("transcribedText")
+    context: List[Dict[str, Any]] = data.get("context", [])
     if not transcribed_text:
         return jsonify({"transcription": {
                     "gpt_answer": "Texto não identificado no áudio",
@@ -32,7 +34,20 @@ def execute():
                     "results": None
                 }}), 400
     
-    json_data = pyjson.loads(ask_gpt(transcribed_text))
+    # Converter context para string
+    context_str = pyjson.dumps(context) if context else ""
+    
+    gpt_response = ask_gpt(transcribed_text, context_str)
+    if not gpt_response:
+        return jsonify({"transcription": {
+            "gpt_answer": "Erro ao processar a solicitação",
+            "description": None,
+            "consult_results": None,
+            "chart_data": None,
+            "results": None
+        }}), 400
+    
+    json_data = pyjson.loads(gpt_response)
 
     try:
         if json_data.get("answer_blocked") is True:
@@ -47,7 +62,7 @@ def execute():
         if json_data.get("greeting") is True:
                 return jsonify({"transcription": {
                     "gpt_answer": json_data.get("gpt_answer"),
-                    "description": None,
+                   "description": json_data.get("prompt"),
                     "consult_results": None,
                     "chart_data": None,
                     "results": None
@@ -80,7 +95,7 @@ def execute():
             except ValueError as ve:
                 return jsonify({"transcription": {
                     "gpt_answer": json_data.get("gpt_answer"),
-                    "description": None,
+                    "description": json_data.get("prompt"),
                     "consult_results": None,
                     "chart_data": None
                 }}), 200
@@ -89,7 +104,7 @@ def execute():
         print(str(e))
         return jsonify({"transcription": {
             "gpt_answer": "Ocorreu um erro desconhecido",
-            "description": None,
+            "description": json_data.get("prompt"),
             "consult_results": None,
             "chart_data": None
         }}), 400
@@ -97,7 +112,7 @@ def execute():
     return jsonify({
         "transcription": {
             "gpt_answer": json_data.get("gpt_answer"),
-            "description": json_data.get("description"),
+            "description": json_data.get("prompt"),
             "consult_results": convert_object_ids(json_data.get("consult_results")),
             "chart_data": convert_object_ids(json_data.get("chart_data", False))
         }
