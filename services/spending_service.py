@@ -29,7 +29,7 @@ class SpendingService:
             raise ValueError("Date must be in 'YYYY-MM-DD' format")
 
         # 🔥 Compra à vista
-        if installments <= 1:
+        if installments == None:
             doc = {
                 "userId": user_id,
                 "description": data["description"],
@@ -149,9 +149,9 @@ class SpendingService:
 
         else:
             filters["$or"] = [
-                {"is_parent": {"$exists": False}},  # compras à vista
-                {"is_parent": True}                 # compras principais (parent)
-            ]
+            {"installments": {"$exists": False}},
+            {"is_parent": True}
+        ]
 
         operation = data.get("operation")
 

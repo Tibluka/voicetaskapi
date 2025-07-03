@@ -107,6 +107,19 @@ Exemplo para novo registro de compra parcelada: "fiz uma compra parcelada no val
   "collections_needed": ["spendings"]
 }
 
+Exemplo para novo registro de compra a vista: "fiz uma compra no valor de 460 reais":
+{
+  "gpt_answer": "Registro de compra de roupa parcelada.",
+  "type": "SPENDING",
+  "description": "Compra de R$ 460",
+  "value": 460,
+  "category": "OTHER",
+  "total_value": 460,
+  "date": "2025-06-23",
+  "consult": false,
+  "collections_needed": ["spendings"]
+}
+
 ### Consultas sobre Categorias:
 
 Se o prompt mencionar categorias específicas como comida, farmácia, lazer:
