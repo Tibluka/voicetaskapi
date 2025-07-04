@@ -7,9 +7,10 @@ from utils.convert_utils import convert_object_ids
 
 API_KEY = config("API_KEY_OPENAI")
 
+
 def analyse_result(results: Dict[str, Any], prompt: str):
     client = OpenAI(api_key=API_KEY)
-    agent_analyser = load_prompt('prompts/agent_analyser.txt')
+    agent_analyser = load_prompt("prompts/agent_analyser.txt")
 
     # Limpeza de ObjectIds
     results_clean = {}
@@ -22,12 +23,11 @@ def analyse_result(results: Dict[str, Any], prompt: str):
     ]
 
     for key, value in results_clean.items():
-        messages.append({"role": "assistant", "content": f"Dados da coleção '{key}': {value}"})
+        messages.append(
+            {"role": "assistant", "content": f"Dados da coleção '{key}': {value}"}
+        )
 
-    response = client.chat.completions.create(
-        model="o4-mini",
-        messages=messages
-    )
+    response = client.chat.completions.create(model="o4-mini", messages=messages)
 
     print(response.choices[0].message.content)
     return response.choices[0].message.content

@@ -18,12 +18,11 @@ class ProfileConfigService:
             raise ValueError("Campo 'config_field' não especificado.")
 
         strategy_doc = self.collection.find_one({"userId": user_id})
-        return {
-            "config_field": config_field,
-            "profile-config": strategy_doc
-        }
-        
-    def create_default_profile_config(self, income: float = None, limit: float = None) -> Dict[str, Any]:
+        return {"config_field": config_field, "profile-config": strategy_doc}
+
+    def create_default_profile_config(
+        self, income: float = None, limit: float = None
+    ) -> Dict[str, Any]:
         try:
             """
             Cria uma nova configuração de perfil com estratégia padrão 50-30-20 e sem contas fixas.
@@ -41,14 +40,10 @@ class ProfileConfigService:
             config = {
                 "userId": user_id,
                 "budgetStrategy": "50-30-20",
-                "customPercentages": {
-                    "needs": 50,
-                    "wants": 30,
-                    "investments": 20
-                },
+                "customPercentages": {"needs": 50, "wants": 30, "investments": 20},
                 "fixedBills": [],
                 "createdAt": now,
-                "updatedAt": now
+                "updatedAt": now,
             }
 
             if income is not None:

@@ -8,6 +8,7 @@ from db.mongo import spending_collection
 spending_bp = Blueprint("spendings", __name__)
 spending_service = SpendingService(spending_collection)
 
+
 @spending_bp.route("/spendings/DELETE/<string:spending_id>", methods=["DELETE"])
 @token_required
 def delete_spending(spending_id):

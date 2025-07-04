@@ -1,6 +1,7 @@
 from services.spending_service import SpendingService
 from services.profile_config_service import ProfileConfigService
 
+
 class QueryOrchestrator:
     def __init__(self, spendingDB, profileConfigDB, user_id: str):
         self.user_id = user_id
@@ -17,7 +18,9 @@ class QueryOrchestrator:
                 result["spendings"] = spendings
 
             elif collection == "profile_config":
-                config = self.profile_config_service.consult_profile_config(query_instructions)
+                config = self.profile_config_service.consult_profile_config(
+                    query_instructions
+                )
                 result["profile_config"] = config
 
         return result

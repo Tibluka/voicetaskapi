@@ -1,4 +1,3 @@
-
 from bson import ObjectId
 from pymongo import DESCENDING, ASCENDING
 from flask import g
@@ -6,14 +5,15 @@ from utils.date_utils import get_date_range
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+
 class SpendingService:
     def __init__(self, collection):
-        
+
         self.collection = collection
 
     def insert_spending(self, data: dict):
         logged_user = g.logged_user
-        user_id = logged_user.get('id')
+        user_id = logged_user.get("id")
 
         required_fields = ["description", "value", "type", "category", "date"]
         missing = [field for field in required_fields if not data.get(field)]
@@ -62,7 +62,9 @@ class SpendingService:
             # Documentos das parcelas
             docs = []
             for i in range(installments - 1):
-                installment_date = (base_date + relativedelta(months=i + 1)).strftime("%Y-%m-%d")
+                installment_date = (base_date + relativedelta(months=i + 1)).strftime(
+                    "%Y-%m-%d"
+                )
                 doc = {
                     "userId": user_id,
                     "description": data["description"],
@@ -80,7 +82,7 @@ class SpendingService:
 
     def remove_spending(self, spending_id: str):
         logged_user = g.logged_user
-        user_id = logged_user.get('id')
+        user_id = logged_user.get("id")
 
         try:
             obj_id = ObjectId(spending_id)
@@ -95,27 +97,24 @@ class SpendingService:
         # Se for um gasto parcelado (pai), remover também as parcelas filhas
         if spending.get("is_parent"):
             # Remove o documento pai e os filhos que tenham parent_id igual ao id do pai
-            self.collection.delete_many({
-                "$or": [
-                    {"_id": obj_id},
-                    {"parent_id": obj_id}
-                ],
-                "userId": user_id  # garante que só remove do usuário logado
-            })
+            self.collection.delete_many(
+                {
+                    "$or": [{"_id": obj_id}, {"parent_id": obj_id}],
+                    "userId": user_id,  # garante que só remove do usuário logado
+                }
+            )
         else:
             # Remove apenas o documento único ou parcela (sem filhos)
             self.collection.delete_one({"_id": obj_id, "userId": user_id})
 
         return {"message": "Spending removed successfully"}
-    
+
     def consult_spending(self, data: dict):
         logged_user = g.logged_user
-        user_id = logged_user.get('id')
-        
-        filters = {
-            "userId": user_id  # 🔥 Filtro por usuário
-        }
-        
+        user_id = logged_user.get("id")
+
+        filters = {"userId": user_id}  # 🔥 Filtro por usuário
+
         if data.get("type") == "PROFILE_CONFIG":
             data["type"] = "SPENDING"
 
@@ -148,10 +147,7 @@ class SpendingService:
                     raise ValueError("Date must be 'YYYY-MM' or 'YYYY-MM-DD'")
 
         else:
-            filters["$or"] = [
-            {"installments": {"$exists": False}},
-            {"is_parent": True}
-        ]
+            filters["$or"] = [{"installments": {"$exists": False}}, {"is_parent": True}]
 
         operation = data.get("operation")
 
@@ -159,59 +155,64 @@ class SpendingService:
         if operation == "CATEGORY":
             pipeline = [
                 {"$match": filters},
-                {"$group": {
-                    "_id": "$category",  # Agrupar por category
-                    "total": {"$sum": "$value"}
-                }},
-                {"$project": {
-                    "label": "$_id",     # Projetar category como label
-                    "value": "$total",   # Projetar total como value
-                    "_id": 0
-                }},
-                {"$sort": {"value": -1}}  # Ordenar por value decrescente
+                {
+                    "$group": {
+                        "_id": "$category",  # Agrupar por category
+                        "total": {"$sum": "$value"},
+                    }
+                },
+                {
+                    "$project": {
+                        "label": "$_id",  # Projetar category como label
+                        "value": "$total",  # Projetar total como value
+                        "_id": 0,
+                    }
+                },
+                {"$sort": {"value": -1}},  # Ordenar por value decrescente
             ]
             results = list(self.collection.aggregate(pipeline))
             return results
 
-       # 🆕 Comparativo mensal
+        # 🆕 Comparativo mensal
         if operation == "COMPARATIVE":
             raw_range = data.get("date_range", "")
             try:
                 from_str, to_str = [s.strip() for s in raw_range.split("a")]
                 # Manter as datas como string para comparação
                 date_from = from_str  # "2028-01-01"
-                date_to = to_str      # "2028-12-31"
+                date_to = to_str  # "2028-12-31"
             except Exception as e:
                 raise ValueError(f"Formato inválido de date_range: {raw_range}") from e
 
             # Filtro de data para campos string (comparação lexicográfica funciona com YYYY-MM-DD)
-            filters["date"] = {
-                "$gte": date_from,
-                "$lte": date_to
-            }
+            filters["date"] = {"$gte": date_from, "$lte": date_to}
 
             pipeline = [
                 {"$match": filters},
-                {"$group": {
-                    "_id": {
-                        # Extrair ano e mês da string "2028-02-05"
-                        "year": {"$substr": ["$date", 0, 4]},      # "2028"
-                        "month": {"$substr": ["$date", 5, 2]}      # "02"
-                    },
-                    "total": {"$sum": "$value"}
-                }},
-                {"$project": {
-                    "month": {
-                        "$concat": [
-                            "$_id.month",    # Já está formatado como "02"
-                            "/",
-                            "$_id.year"      # "2028"
-                        ]
-                    },
-                    "total": 1,
-                    "_id": 0
-                }},
-                {"$sort": {"month": 1}}
+                {
+                    "$group": {
+                        "_id": {
+                            # Extrair ano e mês da string "2028-02-05"
+                            "year": {"$substr": ["$date", 0, 4]},  # "2028"
+                            "month": {"$substr": ["$date", 5, 2]},  # "02"
+                        },
+                        "total": {"$sum": "$value"},
+                    }
+                },
+                {
+                    "$project": {
+                        "month": {
+                            "$concat": [
+                                "$_id.month",  # Já está formatado como "02"
+                                "/",
+                                "$_id.year",  # "2028"
+                            ]
+                        },
+                        "total": 1,
+                        "_id": 0,
+                    }
+                },
+                {"$sort": {"month": 1}},
             ]
 
             results = list(self.collection.aggregate(pipeline))

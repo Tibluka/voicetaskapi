@@ -9,10 +9,10 @@ from routes.execute_route import execute_bp
 from db.mongo import client
 
 app = Flask(__name__)
-CORS(app)  
+CORS(app)
 
 try:
-    client.admin.command('ping')
+    client.admin.command("ping")
     print("✅ Conexão com o MongoDB estabelecida com sucesso.")
 except Exception as e:
     print("❌ Erro ao conectar ao MongoDB:", e)

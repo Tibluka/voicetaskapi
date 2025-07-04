@@ -9,6 +9,7 @@ from utils.auth_decorator import token_required
 auth_bp = Blueprint("auth", __name__)
 auth_service = AuthService(user_collection, password_resets)
 
+
 @auth_bp.route("/auth/login", methods=["POST"])
 def login():
     data = request.get_json()
@@ -30,12 +31,9 @@ def login():
 
     token = TokenService.generate_token({"user": user_to_dto(user)})
 
-    return jsonify({
-        "message": "Login successful",
-        "token": token
-    })
-    
-    
+    return jsonify({"message": "Login successful", "token": token})
+
+
 @auth_bp.route("/auth/register", methods=["POST"])
 def register():
     data = request.get_json()
@@ -52,8 +50,8 @@ def register():
         return jsonify(result), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    
-    
+
+
 @auth_bp.route("/auth/me", methods=["GET"])
 @token_required
 def get_current_user():
@@ -65,7 +63,9 @@ def get_current_user():
     token = auth_header.split(" ", 1)[1]
 
     try:
-        payload = TokenService.verify_token(token)          # ajuste o método se o nome for diferente
+        payload = TokenService.verify_token(
+            token
+        )  # ajuste o método se o nome for diferente
         user_payload = payload.get("user")
 
         if not user_payload:
@@ -79,7 +79,8 @@ def get_current_user():
 
     except Exception as e:
         return jsonify({"error": "Authentication failed"}), 401
-    
+
+
 @auth_bp.route("/auth/change-password", methods=["POST"])
 @token_required
 def change_password():
@@ -92,19 +93,22 @@ def change_password():
 
     try:
         user_id = g.logged_user.get("id")
-        result = auth_service.change_user_password(user_id, current_password, new_password)
+        result = auth_service.change_user_password(
+            user_id, current_password, new_password
+        )
         return jsonify(result), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": "Failed to change password."}), 500
-    
+
+
 @auth_bp.route("/auth/forgot-password", methods=["POST"])
 def forgot_password():
     data = request.get_json()
     email = data.get("email")
 
-    force_send = request.args.get('force', 'false').lower() == 'true'
+    force_send = request.args.get("force", "false").lower() == "true"
 
     if not email:
         return jsonify({"error": "Email é obrigatório."}), 400
@@ -152,27 +156,31 @@ def reset_password():
     except Exception as e:
         return jsonify({"error": "Erro ao resetar senha."}), 500
 
+
 @auth_bp.route("/auth/activate", methods=["GET"])
 def activate_account():
     email = request.args.get("email")
     code = request.args.get("code")
 
     if not email or not code:
-        return render_template_string("<h2>Erro: Email e código são obrigatórios.</h2>"), 400
+        return (
+            render_template_string("<h2>Erro: Email e código são obrigatórios.</h2>"),
+            400,
+        )
 
     try:
         pr = auth_service.validate_token(email, code)
         # Ativa o usuário
         user_collection.update_one(
-            {"_id": pr["userId"]},
-            {"$set": {"status": "ACTIVE"}}
+            {"_id": pr["userId"]}, {"$set": {"status": "ACTIVE"}}
         )
         # Marca o token como usado
         auth_service.password_resets.update_one(
-            {"_id": pr["_id"]},
-            {"$set": {"used": True}}
+            {"_id": pr["_id"]}, {"$set": {"used": True}}
         )
-        return render_template_string("""
+        return (
+            render_template_string(
+                """
             <html>
             <head><title>Conta ativada</title></head>
             <body style='font-family:sans-serif;text-align:center;margin-top:10%'>
@@ -180,7 +188,10 @@ def activate_account():
                 <p>Você já pode fazer login normalmente.</p>
             </body>
             </html>
-        """), 200
+        """
+            ),
+            200,
+        )
     except ValueError as e:
         return render_template_string(f"<h2>Erro: {str(e)}</h2>"), 400
     except Exception as e:

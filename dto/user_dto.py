@@ -5,5 +5,5 @@ def user_to_dto(user: dict) -> dict:
         "name": user["name"],
         "phone": user["phone"],
         "avatar": user["avatar"],
-        "bio": user["bio"]
+        "bio": user["bio"],
     }

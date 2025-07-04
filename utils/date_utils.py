@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import calendar
 
+
 def get_date_range(date_str):
     parts = date_str.split("-")
     if len(parts) == 1:
@@ -18,8 +19,5 @@ def get_date_range(date_str):
         end = start + timedelta(days=1)
     else:
         raise ValueError("Formato de data inválido")
-    
-    return {
-        "$gte": start.strftime("%Y-%m-%d"),
-        "$lt": end.strftime("%Y-%m-%d")
-    }
+
+    return {"$gte": start.strftime("%Y-%m-%d"), "$lt": end.strftime("%Y-%m-%d")}

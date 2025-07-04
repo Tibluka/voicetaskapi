@@ -7,8 +7,11 @@ SENDER_EMAIL = config("EMAIL_SENDER")
 SENDER_NAME = config("EMAIL_SENDER_NAME", "VoiceTask")
 
 configuration = sib_api_v3_sdk.Configuration()
-configuration.api_key['api-key'] = API_KEY
-api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration))
+configuration.api_key["api-key"] = API_KEY
+api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+    sib_api_v3_sdk.ApiClient(configuration)
+)
+
 
 def send_reset_email_with_template(to_email: str, template_id: int, params: dict):
     send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
