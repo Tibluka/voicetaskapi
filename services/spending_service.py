@@ -29,7 +29,7 @@ class SpendingService:
             raise ValueError("Date must be in 'YYYY-MM-DD' format")
 
         # 🔥 Compra à vista
-        if installments == None:
+        if installments == None or installments == 1:
             doc = {
                 "userId": user_id,
                 "description": data["description"],
