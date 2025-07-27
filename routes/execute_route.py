@@ -136,7 +136,8 @@ def execute():
 
         else:
             try:
-                spending_service.insert_spending(json_data)
+                added_document = spending_service.insert_spending(json_data)
+                json_data["consult_results"] = [added_document]
             except ValueError as ve:
                 return (
                     jsonify(

@@ -29,7 +29,7 @@ class SpendingService:
             raise ValueError("Date must be in 'YYYY-MM-DD' format")
 
         # 🔥 Compra à vista
-        if installments == None:
+        if installments <= 1:
             doc = {
                 "userId": user_id,
                 "description": data["description"],
@@ -39,6 +39,7 @@ class SpendingService:
                 "date": base_date.strftime("%Y-%m-%d"),
             }
             self.collection.insert_one(doc)
+            return doc
 
         # 🔥 Compra parcelada
         else:
@@ -79,6 +80,7 @@ class SpendingService:
                 docs.append(doc)
 
             self.collection.insert_many(docs)
+            return docs[0]
 
     def remove_spending(self, spending_id: str):
         logged_user = g.logged_user
