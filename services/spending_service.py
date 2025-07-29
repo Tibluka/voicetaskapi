@@ -4,12 +4,14 @@ from flask import g
 from utils.date_utils import get_date_range
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from services.profile_config_service import ProfileConfigService
+from db.mongo import profile_config_collection
 
 
 class SpendingService:
     def __init__(self, collection):
-
         self.collection = collection
+        self.profile_service = ProfileConfigService(profile_config_collection)
 
     def insert_spending(self, data: dict):
         logged_user = g.logged_user
@@ -28,8 +30,16 @@ class SpendingService:
         except ValueError:
             raise ValueError("Date must be in 'YYYY-MM-DD' format")
 
+        # Verifica se há projectId e atualiza o projeto
+        project_id = data.get("projectId")
+        if project_id:
+            # Verifica se o projeto existe
+            project = self.profile_service.get_project_by_id(project_id)
+            if not project:
+                raise ValueError(f"Project with id {project_id} not found")
+
         # 🔥 Compra à vista
-        if installments <= 1:
+        if installments == None or installments == 1:
             doc = {
                 "userId": user_id,
                 "description": data["description"],
@@ -38,9 +48,19 @@ class SpendingService:
                 "category": data["category"],
                 "date": base_date.strftime("%Y-%m-%d"),
             }
-            self.collection.insert_one(doc)
-            return doc
 
+            # Adiciona projectId se existir
+            if project_id:
+                doc["projectId"] = project_id
+
+            self.collection.insert_one(doc)
+
+            # Atualiza o valor total do projeto
+            if project_id:
+                self.profile_service.update_project_spending(
+                    project_id, float(data["value"])
+                )
+            return doc
         # 🔥 Compra parcelada
         else:
             value_per_installment = float(data["value"]) / installments
@@ -57,6 +77,11 @@ class SpendingService:
                 "installment_info": f"1/{installments}",
                 "is_parent": True,
             }
+
+            # Adiciona projectId se existir
+            if project_id:
+                parent_doc["projectId"] = project_id
+
             parent_result = self.collection.insert_one(parent_doc)
             parent_id = parent_result.inserted_id
 
@@ -77,9 +102,20 @@ class SpendingService:
                     "installment_info": f"{i + 2}/{installments}",
                     "parent_id": parent_id,
                 }
+
+                # Adiciona projectId se existir
+                if project_id:
+                    doc["projectId"] = project_id
+
                 docs.append(doc)
 
             self.collection.insert_many(docs)
+
+            # Atualiza o valor total do projeto (valor total da compra)
+            if project_id:
+                self.profile_service.update_project_spending(
+                    project_id, float(data["value"])
+                )
             return docs[0]
 
     def remove_spending(self, spending_id: str):
@@ -95,6 +131,20 @@ class SpendingService:
         spending = self.collection.find_one({"_id": obj_id, "userId": user_id})
         if not spending:
             raise ValueError("Spending not found or access denied")
+
+        # Se tiver projectId, precisamos descontar o valor do projeto
+        if spending.get("projectId"):
+            project_id = spending["projectId"]
+            # Calcula o valor total a ser descontado
+            if spending.get("is_parent"):
+                # Se for pai, precisa calcular o valor total (todas as parcelas)
+                total_value = spending["value"] * spending.get("installments", 1)
+            else:
+                # Se for parcela única ou gasto simples
+                total_value = spending["value"]
+
+            # Desconta do projeto (valor negativo)
+            self.profile_service.update_project_spending(project_id, -total_value)
 
         # Se for um gasto parcelado (pai), remover também as parcelas filhas
         if spending.get("is_parent"):
@@ -120,8 +170,45 @@ class SpendingService:
         if data.get("type") == "PROFILE_CONFIG":
             data["type"] = "SPENDING"
 
+        operation = data.get("operation")
+
+        # 🆕 Consulta de projeto específico
+        if operation == "CONSULT_PROJECT":
+            project_name = data.get("projectName")
+            if not project_name:
+                raise ValueError(
+                    "Project name is required for CONSULT_PROJECT operation"
+                )
+
+            # Busca o projeto pelo nome
+            project = self.profile_service.get_project_by_name(project_name)
+            if not project:
+                return []  # Retorna lista vazia se projeto não existir
+
+            # Adiciona o projectId ao filtro
+            filters["projectId"] = project["projectId"]
+            filters["type"] = "SPENDING"
+
+            # Aplica filtro de data se fornecido
+            if data.get("date"):
+                date_val = data["date"]
+                if len(date_val) == 7:  # yyyy-mm
+                    filters["date"] = get_date_range(date_val)
+                elif len(date_val) == 10:  # yyyy-mm-dd
+                    filters["date"] = date_val
+
+            # Busca todos os gastos do projeto
+            results = list(self.collection.find(filters).sort("date", DESCENDING))
+            for r in results:
+                r["_id"] = str(r["_id"])
+            return results
+
+        # Para outras operações, exclui gastos com projectId se não for especificado
+        if not data.get("projectId") and operation != "CONSULT_PROJECT":
+            filters["projectId"] = {"$exists": False}
+
         # Filtros básicos
-        for k in ["type", "category"]:
+        for k in ["type", "category", "projectId"]:
             if data.get(k):
                 filters[k] = data[k]
 
@@ -150,8 +237,6 @@ class SpendingService:
 
         else:
             filters["$or"] = [{"installments": {"$exists": False}}, {"is_parent": True}]
-
-        operation = data.get("operation")
 
         # 🆕 Agrupamento por categoria
         if operation == "CATEGORY":

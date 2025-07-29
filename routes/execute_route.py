@@ -136,6 +136,37 @@ def execute():
 
         else:
             try:
+                # Verifica se há menção a projeto
+                if json_data.get("projectName"):
+                    project_name = json_data["projectName"]
+
+                    # Busca o projeto pelo nome
+                    project = profile_config_service.get_project_by_name(project_name)
+
+                    if project:
+                        # Adiciona o projectId ao json_data
+                        json_data["projectId"] = project["projectId"]
+
+                        # Atualiza a mensagem de resposta com o nome do projeto
+                        json_data["gpt_answer"] = (
+                            f"✅ **Gasto registrado no projeto '{project['projectName']}'!**\n\n💰 Valor: R$ {json_data.get('value', 0):.2f}\n📝 {json_data.get('description', '')}"
+                        )
+                    else:
+                        # Se o projeto não existir, retorna erro
+                        return (
+                            jsonify(
+                                {
+                                    "transcription": {
+                                        "gpt_answer": f"❌ Projeto '{project_name}' não encontrado. Por favor, crie o projeto primeiro ou verifique o nome.",
+                                        "description": json_data.get("prompt"),
+                                        "consult_results": None,
+                                        "chart_data": None,
+                                    }
+                                }
+                            ),
+                            400,
+                        )
+
                 added_document = spending_service.insert_spending(json_data)
                 json_data["consult_results"] = [added_document]
             except ValueError as ve:
@@ -143,14 +174,14 @@ def execute():
                     jsonify(
                         {
                             "transcription": {
-                                "gpt_answer": json_data.get("gpt_answer"),
+                                "gpt_answer": str(ve),
                                 "description": json_data.get("prompt"),
                                 "consult_results": None,
                                 "chart_data": None,
                             }
                         }
                     ),
-                    200,
+                    400,
                 )
 
     except Exception as e:

@@ -6,6 +6,7 @@ from routes.auth_routes import auth_bp
 from routes.spendings_route import spending_bp
 from routes.config_route import config_bp
 from routes.execute_route import execute_bp
+from routes.projects_route import projects_bp  # Nova importação
 from db.mongo import client
 
 app = Flask(__name__)
@@ -24,6 +25,7 @@ app.register_blueprint(transcribe_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(spending_bp)
 app.register_blueprint(config_bp)
+app.register_blueprint(projects_bp)  # Nova rota
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=6002)
