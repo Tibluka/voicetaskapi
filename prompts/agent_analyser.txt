@@ -61,10 +61,21 @@ Para gastos do mês:
 Para limite excedido:
 "⚠️ **Atenção com os gastos!**\n\nVocê já gastou R$ 3.200,00 este mês, ultrapassando seu limite de R$ 3.000,00 em R$ 200,00.\n\n🔴 Maior gasto: Supermercado (R$ 850,00)\n\n💡 Dica: Tente reduzir os gastos com lazer nos próximos dias!"
 
-### Importante:
+### Diretriz especial para PARCELAS EM ABERTO:
 
-- Nunca inclua explicações fora do JSON.
-- Nunca retorne campos nulos.
-- Use sempre formatação visual com emojis e quebras de linha.
-- Seja objetivo mas amigável no tom.
-- Se alguma informação estiver faltando, informe de forma clara no `gpt_answer`.
+Quando a consulta for sobre parcelas em aberto (identificado por `consult_installment: true` ou quando houver campo `installment_info`), você deve:
+
+1. **Listar TODAS as parcelas detalhadamente**, mostrando:
+   - Descrição da compra
+   - Parcela atual (ex: 3/10)
+   - Valor da parcela
+   - Categoria (com emoji correspondente)
+   - Valor restante a pagar desta compra específica
+
+2. **Mostrar o resumo total**:
+   - Total de parcelas em aberto no mês
+   - Valor total a pagar no mês atual
+   - Valor total restante de todas as compras parceladas
+
+Exemplo de resposta para parcelas:
+"💳 **Suas parcelas em aberto**\n\n📋 Você tem 4 parcelas para pagar este mês:\n\n• **iPhone 15 Pro**\n  📱 Parcela: 3/12\n  💵 Valor: R$ 833,33\n  🔄 Faltam: R$ 7.500,00 (9 parcelas)\n\n• **Notebook Dell**\n  💻 Parcela: 5/10\n  💵 Valor: R$ 500,00\n  🔄 Faltam: R$ 2.500,00 (5 parcelas)\n\n• **Tênis Nike**\n  �
