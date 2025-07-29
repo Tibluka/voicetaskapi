@@ -9,6 +9,7 @@ def config_to_dto(cfg: dict) -> dict:
         "currentSpent": cfg.get("currentSpent", 0),
         "fixedBills": cfg.get("fixedBills", []),
         "goals": cfg.get("goals", []),
+        "projects": cfg.get("projects", []),
         "createdAt": cfg["createdAt"].isoformat(),
         "updatedAt": cfg["updatedAt"].isoformat(),
     }
