@@ -1,7 +1,5 @@
 from flask import Blueprint, jsonify, g
 from utils.auth_decorator import token_required
-from bson.errors import InvalidId
-from bson import ObjectId
 from services.spending_service import SpendingService
 from db.mongo import spending_collection
 
