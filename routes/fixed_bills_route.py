@@ -4,7 +4,6 @@ from services.profile_config_service import ProfileConfigService
 from db.mongo import profile_config_collection
 from utils.convert_utils import convert_object_ids
 from datetime import datetime
-from dto.fixed_bills_dto import get_bill_status_for_month  # Importação adicional
 
 fixed_bills_bp = Blueprint("fixed_bills", __name__)
 profile_config_service = ProfileConfigService(profile_config_collection)
