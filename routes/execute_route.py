@@ -6,9 +6,7 @@ from services.gpt_chart import analyse_chart_intent
 from db.mongo import spending_collection, profile_config_collection
 from services.profile_config_service import ProfileConfigService
 from services.query_orchestrator import QueryOrchestrator
-from dto.fixed_bills_dto import fixed_bill_to_dto
 import re
-import os
 import json as pyjson
 from typing import List, Dict, Any
 
