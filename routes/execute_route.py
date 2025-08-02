@@ -6,6 +6,7 @@ from services.gpt_chart import analyse_chart_intent
 from db.mongo import spending_collection, profile_config_collection
 from services.profile_config_service import ProfileConfigService
 from services.query_orchestrator import QueryOrchestrator
+from dto.fixed_bills_dto import fixed_bill_to_dto
 import re
 import os
 import json as pyjson
@@ -136,39 +137,87 @@ def execute():
 
         else:
             try:
-                # Verifica se há menção a projeto
-                if json_data.get("projectName"):
-                    project_name = json_data["projectName"]
-
-                    # Busca o projeto pelo nome
-                    project = profile_config_service.get_project_by_name(project_name)
-
-                    if project:
-                        # Adiciona o projectId ao json_data
-                        json_data["projectId"] = project["projectId"]
-
-                        # Atualiza a mensagem de resposta com o nome do projeto
-                        json_data["gpt_answer"] = (
-                            f"✅ **Gasto registrado no projeto '{project['projectName']}'!**\n\n💰 Valor: R$ {json_data.get('value', 0):.2f}\n📝 {json_data.get('description', '')}"
-                        )
-                    else:
-                        # Se o projeto não existir, retorna erro
+                # Verifica se é criação de conta fixa
+                if json_data.get("type") == "FIXED_BILL":
+                    # Validações
+                    required_fields = ["name", "amount", "dueDay"]
+                    # Mapeamento dos campos para nomes em português
+                    field_names_pt = {
+                        "name": "nome",
+                        "amount": "valor",
+                        "dueDay": "dia de vencimento"
+                    }
+                    missing = [
+                        field for field in required_fields if not json_data.get(field)
+                    ]
+                    if missing:
+                        missing_pt = [field_names_pt.get(field, field) for field in missing]
                         return (
                             jsonify(
                                 {
                                     "transcription": {
-                                        "gpt_answer": f"❌ Projeto '{project_name}' não encontrado. Por favor, crie o projeto primeiro ou verifique o nome.",
+                                        "gpt_answer": f"Faltam informações para criar a conta fixa: {', '.join(missing_pt)}",
                                         "description": json_data.get("prompt"),
                                         "consult_results": None,
                                         "chart_data": None,
                                     }
                                 }
                             ),
-                            400,
+                            200,
                         )
 
-                added_document = spending_service.insert_spending(json_data)
-                json_data["consult_results"] = [added_document]
+                    # Cria a conta fixa
+                    bill = profile_config_service.create_fixed_bill(
+                        name=json_data["name"],
+                        amount=float(json_data["amount"]),
+                        due_day=int(json_data["dueDay"]),
+                        description=json_data.get("description", ""),
+                        category=json_data.get("category", "OTHER"),
+                        autopay=json_data.get("autopay", False),
+                        reminder=json_data.get("reminder", True),
+                    )
+
+                    # Atualiza a resposta para confirmar a criação
+                    json_data["gpt_answer"] = (
+                        f"✅ **Conta fixa criada com sucesso!**\n\n📝 {bill['name']}\n💰 Valor: R$ {bill['amount']:.2f}\n📅 Vencimento: Todo dia {bill['dueDay']}\n\nA conta será lembrada todos os meses!"
+                    )
+
+                # Se não for conta fixa, é um gasto normal
+                else:
+                    # Verifica se há menção a projeto
+                    if json_data.get("projectName"):
+                        project_name = json_data["projectName"]
+
+                        # Busca o projeto pelo nome
+                        project = profile_config_service.get_project_by_name(
+                            project_name
+                        )
+
+                        if project:
+                            # Adiciona o projectId ao json_data
+                            json_data["projectId"] = project["projectId"]
+
+                            # Atualiza a mensagem de resposta com o nome do projeto
+                            json_data["gpt_answer"] = (
+                                f"✅ **Gasto registrado no projeto '{project['projectName']}'!**\n\n💰 Valor: R$ {json_data.get('value', 0):.2f}\n📝 {json_data.get('description', '')}"
+                            )
+                        else:
+                            # Se o projeto não existir, retorna erro
+                            return (
+                                jsonify(
+                                    {
+                                        "transcription": {
+                                            "gpt_answer": f"❌ Projeto '{project_name}' não encontrado. Por favor, crie o projeto primeiro ou verifique o nome.",
+                                            "description": json_data.get("prompt"),
+                                            "consult_results": None,
+                                            "chart_data": None,
+                                        }
+                                    }
+                                ),
+                                400,
+                            )
+
+                    spending_service.insert_spending(json_data)
             except ValueError as ve:
                 return (
                     jsonify(
