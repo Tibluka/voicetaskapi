@@ -10,7 +10,10 @@ from routes.execute_route import execute_bp
 from routes.projects_route import projects_bp
 from routes.fixed_bills_route import fixed_bills_bp
 from routes.summary_route import summary_bp
+from routes.notifications_route import notifications_bp
 from db.mongo import client
+
+# Importar módulo WebSocket
 from websocket_server import init_socketio
 
 app = Flask(__name__)
@@ -33,6 +36,7 @@ app.register_blueprint(config_bp)
 app.register_blueprint(projects_bp)
 app.register_blueprint(fixed_bills_bp)
 app.register_blueprint(summary_bp)
+app.register_blueprint(notifications_bp)
 
 # Inicializar WebSocket
 socketio = init_socketio(app)

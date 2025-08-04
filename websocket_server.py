@@ -4,9 +4,11 @@ from flask import request
 from functools import wraps
 from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
+from pytz import timezone
 from db.mongo import profile_config_collection
 from services.profile_config_service import ProfileConfigService
-from utils.auth_decorator import decode_token
+from services.token_service import TokenService
+from dto.fixed_bills_dto import get_bill_status_for_month
 import logging
 
 # Configurar logging
@@ -36,11 +38,14 @@ def init_socketio(app):
     socketio.on_event("subscribe_notifications", handle_subscribe)
     socketio.on_event("unsubscribe_notifications", handle_unsubscribe)
 
-    # Agendar verificação de lembretes
+    tz = timezone("America/Sao_Paulo")
+
     scheduler.add_job(
         func=check_and_send_reminders,
-        trigger="interval",
-        hours=1,  # Verifica a cada hora
+        trigger="cron",
+        hour="12,22",  # Meio-dia e 22h
+        minute=0,
+        timezone=tz,  # Importante para garantir o horário correto
         id="check_reminders",
         replace_existing=True,
     )
@@ -85,8 +90,13 @@ def handle_authenticate(data):
 
     try:
         # Decodificar token
-        payload = decode_token(token)
-        user_id = payload.get("user_id")
+        payload = TokenService.verify_token(token)
+        user_data = payload.get("user")
+        if not user_data:
+            emit("auth_error", {"message": "Invalid token payload"})
+            return
+
+        user_id = user_data.get("id")
 
         # Armazenar conexão
         active_connections[request.sid] = {
@@ -157,15 +167,19 @@ def check_and_send_reminders():
                 if bill.get("status") != "ACTIVE" or not bill.get("reminder", True):
                     continue
 
+                if bill.get("reminder" != True):
+                    continue
+
+                if bill.get("autopay" == True):
+                    continue
+
                 due_day = bill.get("dueDay")
                 bill_name = bill.get("name")
                 amount = bill.get("amount")
 
                 # Verificar se a conta já foi paga este mês
                 year_month = current_date.strftime("%Y-%m")
-                payment_status = profile_service.get_bill_status_for_month(
-                    bill, year_month
-                )
+                payment_status = get_bill_status_for_month(bill, year_month)
 
                 if payment_status.get("paid"):
                     continue
@@ -173,16 +187,16 @@ def check_and_send_reminders():
                 # Enviar lembretes em diferentes momentos
                 days_until_due = calculate_days_until_due(current_day, due_day)
 
-                # Lembrete 3 dias antes
-                if days_until_due == 3:
+                # Lembrete 1 dia antes
+                if days_until_due == 1:
                     send_notification_to_user(
                         user_id,
                         {
                             "type": "BILL_REMINDER",
-                            "title": "Conta a vencer em 3 dias",
-                            "message": f'A conta "{bill_name}" de R$ {amount:.2f} vence em 3 dias (dia {due_day})',
+                            "title": "Conta a vencer",
+                            "message": f'A conta "{bill_name}" de R$ {amount:.2f} vence amanhã (dia {due_day})',
                             "billId": bill.get("billId"),
-                            "daysUntilDue": 3,
+                            "daysUntilDue": 1,
                             "severity": "medium",
                         },
                     )
