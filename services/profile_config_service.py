@@ -3,7 +3,6 @@ from pymongo.collection import Collection
 from typing import Dict, Any, List, Optional
 from zoneinfo import ZoneInfo
 from datetime import datetime
-from bson import ObjectId
 from dto.project_dto import create_project_dict, project_to_dto
 from dto.fixed_bills_dto import (
     create_fixed_bill_dict,
@@ -154,7 +153,9 @@ class ProfileConfigService:
 
         profile_config = self.collection.find_one({"userId": user_id})
         if not profile_config or not profile_config.get("projects"):
-            return None
+            return self.create_project(
+                project_name
+            )
 
         # Busca case insensitive
         for project in profile_config.get("projects", []):

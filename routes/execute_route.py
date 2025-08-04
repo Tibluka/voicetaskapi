@@ -194,6 +194,7 @@ def execute():
                         if project:
                             # Adiciona o projectId ao json_data
                             json_data["projectId"] = project["projectId"]
+                            profile_config_service.update_project_spending(project["projectId"], json_data.get('value', 0))
 
                             # Atualiza a mensagem de resposta com o nome do projeto
                             json_data["gpt_answer"] = (
