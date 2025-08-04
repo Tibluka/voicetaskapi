@@ -43,4 +43,4 @@ socketio = init_socketio(app)
 
 if __name__ == "__main__":
     # Usar socketio.run ao invés de app.run para suportar WebSocket
-    socketio.run(app, debug=True, host="0.0.0.0", port=6002)
+    socketio.run(app, debug=True, host="0.0.0.0", port=6002, allow_unsafe_werkzeug=True)
