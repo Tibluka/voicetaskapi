@@ -1,5 +1,6 @@
+# api.py
 import sys
-from flask_cors import CORS  # <-- import CORS
+from flask_cors import CORS
 from flask import Flask
 from routes.transcribe_route import transcribe_bp
 from routes.auth_routes import auth_bp
