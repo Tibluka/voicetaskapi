@@ -28,8 +28,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(spending_bp) 
 app.register_blueprint(config_bp) 
 app.register_blueprint(projects_bp) 
-app.register_blueprint(fixed_bills_bp)  # Nova rota 
-app.register_blueprint(summary_bp)  # Nova rota 
+app.register_blueprint(fixed_bills_bp) 
+app.register_blueprint(summary_bp)
 
 if __name__ == "__main__": 
     app.run(debug=True, host="0.0.0.0", port=6002) 
