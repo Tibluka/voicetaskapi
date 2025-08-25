@@ -56,6 +56,14 @@ def create_fixed_bill():
             reminder=data.get("reminder", True),
         )
 
+        # Adiciona os campos autopay, reminder e description no dicionário de retorno, se existirem no request
+        if "autopay" in data:
+            bill["autopay"] = data["autopay"]
+        if "reminder" in data:
+            bill["reminder"] = data["reminder"]
+        if "description" in data:
+            bill["description"] = data["description"]
+
         # Debug - verifica se foi salvo
         user_id = g.logged_user.get("id")
         config = profile_config_service.collection.find_one({"userId": user_id})
