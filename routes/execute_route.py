@@ -135,21 +135,103 @@ def execute():
 
         else:
             try:
+                # Verifica se é criação de projeto
+                if json_data.get("type") == "PROJECT_CREATION":
+                    # Validações
+                    required_fields = ["projectName", "targetValue"]
+                    field_names_pt = {
+                        "projectName": "nome do projeto",
+                        "targetValue": "valor alvo",
+                    }
+                    missing = [
+                        field for field in required_fields if not json_data.get(field)
+                    ]
+                    if missing:
+                        missing_pt = [
+                            field_names_pt.get(field, field) for field in missing
+                        ]
+                        return (
+                            jsonify(
+                                {
+                                    "transcription": {
+                                        "gpt_answer": f"🏗️ **Para criar seu projeto, preciso de mais informações:**\n\n❓ **Faltam:** {', '.join(missing_pt)}\n\nExemplo: *\"Criar projeto reforma da casa com meta de 50 mil reais\"*",
+                                        "description": json_data.get("prompt"),
+                                        "consult_results": None,
+                                        "chart_data": None,
+                                    }
+                                }
+                            ),
+                            400,
+                        )
+
+                    # Verifica se já existe um projeto com esse nome
+                    existing_project = profile_config_service.get_project_by_name(
+                        json_data["projectName"]
+                    )
+                    if existing_project:
+                        return (
+                            jsonify(
+                                {
+                                    "transcription": {
+                                        "gpt_answer": f"❌ **Projeto já existe!**\n\nJá existe um projeto chamado \"{json_data['projectName']}\". Escolha outro nome ou use o projeto existente.",
+                                        "description": json_data.get("prompt"),
+                                        "consult_results": None,
+                                        "chart_data": None,
+                                    }
+                                }
+                            ),
+                            400,
+                        )
+
+                    # Cria o projeto
+                    project = profile_config_service.create_project(
+                        name=json_data["projectName"],
+                        description="",
+                        target_value=float(json_data["targetValue"]),
+                    )
+
+                    # Atualiza a resposta para confirmar a criação
+                    description_text = (
+                        f"📝 **Descrição:** {project['description']}\n"
+                        if project.get("description")
+                        else ""
+                    )
+                    json_data["gpt_answer"] = (
+                        f"🏗️ **Projeto criado com sucesso!**\n\n"
+                        f"✅ **Nome:** {project['projectName']}\n"
+                        f"🎯 **Meta:** R$ {project['targetValue']:.2f}\n"
+                        f"{description_text}"
+                        f"Agora você pode vincular gastos a este projeto! 📊"
+                    )
+
+                    # Para projetos, adapta para o formato ConsultResult
+                    project_result = {
+                        "_id": project["projectId"],
+                        "category": project["projectName"],
+                        "description": "Novo projeto criado",
+                        "date": json_data.get("date", ""),
+                        "value": float(project["targetValue"]),
+                        "type": "PROJECT_CREATION",
+                    }
+                    json_data["consult_results"] = [project_result]
+
                 # Verifica se é criação de conta fixa
-                if json_data.get("type") == "FIXED_BILL":
+                elif json_data.get("type") == "FIXED_BILL":
                     # Validações
                     required_fields = ["name", "amount", "dueDay"]
                     # Mapeamento dos campos para nomes em português
                     field_names_pt = {
                         "name": "nome",
                         "amount": "valor",
-                        "dueDay": "dia de vencimento"
+                        "dueDay": "dia de vencimento",
                     }
                     missing = [
                         field for field in required_fields if not json_data.get(field)
                     ]
                     if missing:
-                        missing_pt = [field_names_pt.get(field, field) for field in missing]
+                        missing_pt = [
+                            field_names_pt.get(field, field) for field in missing
+                        ]
                         return (
                             jsonify(
                                 {
@@ -180,7 +262,7 @@ def execute():
                         f"✅ **Conta fixa criada com sucesso!**\n\n📝 {bill['name']}\n💰 Valor: R$ {bill['amount']:.2f}\n📅 Vencimento: Todo dia {bill['dueDay']}\n\nA conta será lembrada todos os meses!"
                     )
 
-                # Se não for conta fixa, é um gasto normal
+                # Se não for projeto nem conta fixa, é um gasto normal
                 else:
                     # Verifica se há menção a projeto
                     if json_data.get("projectName"):
@@ -194,7 +276,9 @@ def execute():
                         if project:
                             # Adiciona o projectId ao json_data
                             json_data["projectId"] = project["projectId"]
-                            profile_config_service.update_project_spending(project["projectId"], json_data.get('value', 0))
+                            profile_config_service.update_project_spending(
+                                project["projectId"], json_data.get("value", 0)
+                            )
 
                             # Atualiza a mensagem de resposta com o nome do projeto
                             json_data["gpt_answer"] = (
@@ -216,8 +300,11 @@ def execute():
                                 400,
                             )
 
-                added_document = spending_service.insert_spending(json_data)
-                json_data["consult_results"] = [added_document]
+                    # Só insere gasto se não for criação de projeto
+                    if json_data.get("type") != "PROJECT_CREATION":
+                        added_document = spending_service.insert_spending(json_data)
+                        json_data["consult_results"] = [added_document]
+
             except ValueError as ve:
                 return (
                     jsonify(
