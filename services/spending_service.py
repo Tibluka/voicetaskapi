@@ -55,10 +55,17 @@ class SpendingService:
 
             self.collection.insert_one(doc)
 
-            # Atualiza o valor total do projeto
+            # Atualiza o valor total do projeto e adiciona ao histórico
             if project_id:
                 self.profile_service.update_project_spending(
-                    project_id, float(data["value"])
+                    project_id=project_id,
+                    value=float(data["value"]),
+                    spending_id=str(doc["_id"]),
+                    description=data["description"],
+                    category=data["category"],
+                    date=base_date.strftime("%Y-%m-%d"),
+                    installments=1,
+                    installment_info="1/1",
                 )
             return doc
         # 🔥 Compra parcelada
@@ -111,10 +118,17 @@ class SpendingService:
 
             self.collection.insert_many(docs)
 
-            # Atualiza o valor total do projeto (valor total da compra)
+            # Atualiza o valor total do projeto (valor total da compra) e adiciona ao histórico
             if project_id:
                 self.profile_service.update_project_spending(
-                    project_id, float(data["value"])
+                    project_id=project_id,
+                    value=float(data["value"]),
+                    spending_id=str(parent_id),
+                    description=data["description"],
+                    category=data["category"],
+                    date=base_date.strftime("%Y-%m-%d"),
+                    installments=installments,
+                    installment_info=f"1/{installments}",
                 )
             return docs[0]
 
@@ -143,7 +157,7 @@ class SpendingService:
                 # Se for parcela única ou gasto simples
                 total_value = spending["value"]
 
-            # Desconta do projeto (valor negativo)
+            # Desconta do projeto (valor negativo) - não adiciona ao histórico pois é remoção
             self.profile_service.update_project_spending(project_id, -total_value)
 
         # Se for um gasto parcelado (pai), remover também as parcelas filhas

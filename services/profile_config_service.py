@@ -3,7 +3,12 @@ from pymongo.collection import Collection
 from typing import Dict, Any, List, Optional
 from zoneinfo import ZoneInfo
 from datetime import datetime
-from dto.project_dto import create_project_dict, project_to_dto
+from dto.project_dto import (
+    create_project_dict,
+    project_to_dto,
+    create_expense_history_item,
+    expense_history_item_to_dto,
+)
 from dto.fixed_bills_dto import (
     create_fixed_bill_dict,
     fixed_bill_to_dto,
@@ -153,9 +158,7 @@ class ProfileConfigService:
 
         profile_config = self.collection.find_one({"userId": user_id})
         if not profile_config or not profile_config.get("projects"):
-            return self.create_project(
-                project_name
-            )
+            return self.create_project(project_name)
 
         # Busca case insensitive
         for project in profile_config.get("projects", []):
@@ -163,20 +166,52 @@ class ProfileConfigService:
                 return project
         return None
 
-    def update_project_spending(self, project_id: str, value: float) -> bool:
-        """Atualiza o valor total gasto em um projeto"""
+    def update_project_spending(
+        self,
+        project_id: str,
+        value: float,
+        spending_id: str = None,
+        description: str = "",
+        category: str = "",
+        date: str = "",
+        installments: int = 1,
+        installment_info: str = "1/1",
+    ) -> bool:
+        """Atualiza o valor total gasto em um projeto e adiciona ao histórico"""
         logged_user = g.logged_user
         user_id = logged_user.get("id")
 
         now = datetime.now(ZoneInfo("America/Sao_Paulo"))
 
-        result = self.collection.update_one(
-            {"userId": user_id, "projects.projectId": project_id},
-            {
-                "$inc": {"projects.$.totalValueRegistered": value},
-                "$set": {"projects.$.dateHourUpdated": now, "updatedAt": now},
-            },
-        )
+        # Se for um valor negativo (remoção de gasto), não adiciona ao histórico
+        if value < 0:
+            result = self.collection.update_one(
+                {"userId": user_id, "projects.projectId": project_id},
+                {
+                    "$inc": {"projects.$.totalValueRegistered": value},
+                    "$set": {"projects.$.dateHourUpdated": now, "updatedAt": now},
+                },
+            )
+        else:
+            # Para valores positivos, adiciona ao histórico
+            expense_item = create_expense_history_item(
+                spending_id=spending_id or "",
+                value=value,
+                description=description,
+                category=category,
+                date=date,
+                installments=installments,
+                installment_info=installment_info,
+            )
+
+            result = self.collection.update_one(
+                {"userId": user_id, "projects.projectId": project_id},
+                {
+                    "$inc": {"projects.$.totalValueRegistered": value},
+                    "$push": {"projects.$.expenseHistory": expense_item},
+                    "$set": {"projects.$.dateHourUpdated": now, "updatedAt": now},
+                },
+            )
 
         return result.modified_count > 0
 
@@ -196,6 +231,115 @@ class ProfileConfigService:
             projects = [p for p in projects if p.get("status") == status]
 
         return [project_to_dto(p) for p in projects]
+
+    def remove_expense_from_project(self, project_id: str, expense_id: str) -> bool:
+        """Remove um gasto específico do histórico do projeto"""
+        logged_user = g.logged_user
+        user_id = logged_user.get("id")
+
+        # Primeiro, busca o projeto para encontrar o gasto
+        profile_config = self.collection.find_one({"userId": user_id})
+        if not profile_config:
+            return False
+
+        project = None
+        expense_to_remove = None
+        for p in profile_config.get("projects", []):
+            if p["projectId"] == project_id:
+                project = p
+                # Busca o gasto no histórico
+                for expense in p.get("expenseHistory", []):
+                    if expense["expenseId"] == expense_id:
+                        expense_to_remove = expense
+                        break
+                break
+
+        if not project or not expense_to_remove:
+            return False
+
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+        # Remove o gasto do histórico e desconta do total
+        result = self.collection.update_one(
+            {"userId": user_id, "projects.projectId": project_id},
+            {
+                "$pull": {"projects.$.expenseHistory": {"expenseId": expense_id}},
+                "$inc": {
+                    "projects.$.totalValueRegistered": -expense_to_remove["value"]
+                },
+                "$set": {"projects.$.dateHourUpdated": now, "updatedAt": now},
+            },
+        )
+
+        return result.modified_count > 0
+
+    def update_expense_in_project(
+        self,
+        project_id: str,
+        expense_id: str,
+        new_value: float = None,
+        new_description: str = None,
+        new_category: str = None,
+        new_date: str = None,
+    ) -> bool:
+        """Atualiza um gasto específico no histórico do projeto"""
+        logged_user = g.logged_user
+        user_id = logged_user.get("id")
+
+        # Primeiro, busca o projeto para encontrar o gasto
+        profile_config = self.collection.find_one({"userId": user_id})
+        if not profile_config:
+            return False
+
+        project = None
+        expense_to_update = None
+        for p in profile_config.get("projects", []):
+            if p["projectId"] == project_id:
+                project = p
+                # Busca o gasto no histórico
+                for expense in p.get("expenseHistory", []):
+                    if expense["expenseId"] == expense_id:
+                        expense_to_update = expense
+                        break
+                break
+
+        if not project or not expense_to_update:
+            return False
+
+        old_value = expense_to_update["value"]
+        now = datetime.now(ZoneInfo("America/Sao_Paulo"))
+
+        # Prepara as atualizações
+        update_fields = {}
+        if new_value is not None:
+            update_fields["projects.$.expenseHistory.$.value"] = new_value
+        if new_description is not None:
+            update_fields["projects.$.expenseHistory.$.description"] = new_description
+        if new_category is not None:
+            update_fields["projects.$.expenseHistory.$.category"] = new_category
+        if new_date is not None:
+            update_fields["projects.$.expenseHistory.$.date"] = new_date
+
+        update_fields["projects.$.expenseHistory.$.updatedAt"] = now
+        update_fields["projects.$.dateHourUpdated"] = now
+        update_fields["updatedAt"] = now
+
+        # Se o valor mudou, atualiza o total
+        if new_value is not None and new_value != old_value:
+            update_fields["projects.$.totalValueRegistered"] = project.get(
+                "totalValueRegistered", 0
+            ) + (new_value - old_value)
+
+        result = self.collection.update_one(
+            {
+                "userId": user_id,
+                "projects.projectId": project_id,
+                "projects.expenseHistory.expenseId": expense_id,
+            },
+            {"$set": update_fields},
+        )
+
+        return result.modified_count > 0
 
     # ===== MÉTODOS PARA CONTAS FIXAS =====
 

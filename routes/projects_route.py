@@ -4,6 +4,7 @@ from services.profile_config_service import ProfileConfigService
 from services.spending_service import SpendingService
 from db.mongo import profile_config_collection, spending_collection
 from utils.convert_utils import convert_object_ids
+from datetime import datetime
 
 projects_bp = Blueprint("projects", __name__)
 profile_config_service = ProfileConfigService(profile_config_collection)
@@ -209,6 +210,107 @@ def delete_project(project_id):
                 {
                     "message": f"Project '{project['projectName']}' deleted successfully",
                     "note": "Associated spendings were not deleted and remain in your history",
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@projects_bp.route("/projects/<project_id>/expenses/<expense_id>", methods=["PUT"])
+@token_required
+def update_project_expense(project_id, expense_id):
+    """Atualiza um gasto específico de um projeto"""
+    try:
+        data = request.get_json()
+
+        # Campos que podem ser atualizados
+        new_value = data.get("value")
+        new_description = data.get("description")
+        new_category = data.get("category")
+        new_date = data.get("date")
+
+        # Valida se pelo menos um campo foi fornecido
+        if not any([new_value is not None, new_description, new_category, new_date]):
+            return (
+                jsonify({"error": "At least one field must be provided for update"}),
+                400,
+            )
+
+        # Valida o valor se fornecido
+        if new_value is not None:
+            try:
+                new_value = float(new_value)
+                if new_value < 0:
+                    return jsonify({"error": "Value cannot be negative"}), 400
+            except (ValueError, TypeError):
+                return jsonify({"error": "Invalid value format"}), 400
+
+        # Valida a data se fornecida
+        if new_date:
+            try:
+                datetime.strptime(new_date, "%Y-%m-%d")
+            except ValueError:
+                return jsonify({"error": "Date must be in 'YYYY-MM-DD' format"}), 400
+
+        # Atualiza o gasto
+        success = profile_config_service.update_expense_in_project(
+            project_id=project_id,
+            expense_id=expense_id,
+            new_value=new_value,
+            new_description=new_description,
+            new_category=new_category,
+            new_date=new_date,
+        )
+
+        if not success:
+            return jsonify({"error": "Expense not found or update failed"}), 404
+
+        # Busca o projeto atualizado
+        updated_project = profile_config_service.get_project_by_id(project_id)
+
+        return (
+            jsonify(
+                {
+                    "message": "Expense updated successfully",
+                    "project": convert_object_ids(updated_project),
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@projects_bp.route("/projects/<project_id>/expenses/<expense_id>", methods=["DELETE"])
+@token_required
+def delete_project_expense(project_id, expense_id):
+    """Remove um gasto específico de um projeto"""
+    try:
+        # Verifica se o projeto existe
+        project = profile_config_service.get_project_by_id(project_id)
+        if not project:
+            return jsonify({"error": "Project not found"}), 404
+
+        # Remove o gasto
+        success = profile_config_service.remove_expense_from_project(
+            project_id=project_id, expense_id=expense_id
+        )
+
+        if not success:
+            return jsonify({"error": "Expense not found or removal failed"}), 404
+
+        # Busca o projeto atualizado
+        updated_project = profile_config_service.get_project_by_id(project_id)
+
+        return (
+            jsonify(
+                {
+                    "message": "Expense removed successfully",
+                    "project": convert_object_ids(updated_project),
                 }
             ),
             200,
